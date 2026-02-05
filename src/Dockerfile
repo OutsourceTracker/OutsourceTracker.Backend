@@ -43,5 +43,8 @@ RUN dotnet publish "OutsourceTracker.Backend.csproj" \
 # Final image
 FROM base AS final
 WORKDIR /app
+RUN mkdir -p /app/data && \
+    chmod -R 777 /app/data
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "OutsourceTracker.Backend.dll"]

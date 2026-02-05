@@ -26,7 +26,18 @@ public class Program
 
         builder.Services.AddDbContext<AppDataContext>(options =>
         {
-            options.UseInMemoryDatabase("AppContext");
+            var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+
+            if (builder.Environment.IsDevelopment())
+            {
+                options.UseSqlite(connStr);
+                //options.UseInMemoryDatabase("AppContext");
+                options.EnableSensitiveDataLogging();
+            }
+            else
+            {
+                options.UseSqlite(connStr);
+            }
         });
 
         builder.Services.AddHostedService<AppDataContextInitializer>();
@@ -42,12 +53,8 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-
         app.UseAuthorization();
-
-
         app.MapControllers();
-
         app.Run();
     }
 }
