@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OutsourceTracker.Data;
-using OutsourceTracker.ModelService;
+using OutsourceTracker.Services.ModelService;
 
 namespace OutsourceTracker.Backend;
 
@@ -10,7 +10,6 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         // Add services to the container.
-
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
@@ -27,11 +26,9 @@ public class Program
         builder.Services.AddDbContext<AppDataContext>(options =>
         {
             var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-
             if (builder.Environment.IsDevelopment())
             {
                 options.UseSqlite(connStr);
-                //options.UseInMemoryDatabase("AppContext");
                 options.EnableSensitiveDataLogging();
             }
             else
@@ -41,7 +38,7 @@ public class Program
         });
 
         builder.Services.AddHostedService<AppDataContextInitializer>();
-        builder.Services.AddScoped<TrailerService>();
+        builder.Services.AddScoped<TrailerDataService>();
         var app = builder.Build();
         app.UseCors();
 

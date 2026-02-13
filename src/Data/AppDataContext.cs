@@ -1,11 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using OutsourceTracker.Data.Converters;
+using OutsourceTracker.Models.Accounts;
 using OutsourceTracker.Models.Trailers;
 
 namespace OutsourceTracker.Data;
 
 public class AppDataContext : DbContext
 {
-    public DbSet<CommercialTrailer> Trailers => Set<CommercialTrailer>();
+    public DbSet<Account> BusinessAccounts => Set<Account>();
+
+    public DbSet<Trailer> Trailers => Set<Trailer>();
 
     public AppDataContext(DbContextOptions<AppDataContext> options) : base(options)
     {
@@ -13,11 +17,16 @@ public class AppDataContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Trailer>()
+            .HasOne(e => e.Account)
+            .WithMany()
+            .HasForeignKey(e => e.AccountId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<CommercialTrailer>(x =>
-        {
-            x.HasIndex(n => n.FullName).IsUnique();
-        });
+        modelBuilder.Entity<Trailer>()
+            .Property(e => e.Location)
+            .HasConversion(new MapCoordinatesBinaryConverter())
+            .HasColumnType("varbinary(24)");
     }
 }

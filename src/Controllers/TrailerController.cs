@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Trailers;
-using OutsourceTracker.ModelService;
-using OutsourceTracker.ModelService.Requests;
-using OutsourceTracker.ModelService.Requests.Trailers;
+using OutsourceTracker.Services.ModelService;
 
 namespace OutsourceTracker.Controllers;
 
@@ -10,27 +9,27 @@ namespace OutsourceTracker.Controllers;
 [ApiController]
 public class TrailerController : ControllerBase
 {
-    private TrailerService Service { get; }
+    private TrailerDataService Service { get; }
 
-    public TrailerController(TrailerService service)
+    public TrailerController(TrailerDataService service)
     {
         Service = service;
     }
 
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CommercialTrailer[]))]
-    public IAsyncEnumerable<CommercialTrailer> Get([FromQuery] TrailerFindRequest? request = null)
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer[]))]
+    public IAsyncEnumerable<Trailer> Get([FromQuery] object? request = null)
     {
-        var search = Service.Find(request, HttpContext.RequestAborted);
+        var search = Service.Search(null, HttpContext.RequestAborted);
         return search;
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CommercialTrailer))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id)
     {
-        CommercialTrailer? model = await Service.Get(id, HttpContext.RequestAborted);
+        Trailer? model = await Service.Get(id, HttpContext.RequestAborted);
 
         if (model == null)
         {
@@ -41,9 +40,9 @@ public class TrailerController : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(CommercialTrailer))]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Post([FromBody] TrailerCreateRequest? request = null)
+    public async Task<IActionResult> Post()
     {
         if (!ModelState.IsValid)
         {
@@ -51,7 +50,7 @@ public class TrailerController : ControllerBase
         }
 
 
-        Guid? id = await Service.Create(request, HttpContext.RequestAborted);
+        Guid? id = await Service.Create(HttpContext.RequestAborted);
 
         if (!id.HasValue)
         {
@@ -64,9 +63,9 @@ public class TrailerController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(Guid id, DeleteRequest? request = null)
+    public async Task<IActionResult> Delete(Guid id)
     {
-        bool response = await Service.Delete(id, request, HttpContext.RequestAborted);
+        bool response = await Service.Delete(id, HttpContext.RequestAborted);
 
         if (!response)
         {
@@ -77,17 +76,17 @@ public class TrailerController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CommercialTrailer))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Put(Guid id, [FromBody] TrailerUpdateRequest request)
+    public async Task<IActionResult> Put(Guid id, [FromBody] IDictionary<object, object> request)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
 
-        CommercialTrailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
+        Trailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
 
         if (model == null)
         {
@@ -98,19 +97,18 @@ public class TrailerController : ControllerBase
     }
 
     [HttpGet("{id}/spot")]
-    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(CommercialTrailer))]
+    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(Guid))]
     public async Task<IActionResult> Spot(Guid id, [FromQuery] double lat, [FromQuery] double lon, [FromQuery] double acc, [FromQuery] string name)
     {
-        TrailerUpdateRequest request = new()
+        var update = new
         {
-            Latitude = lat,
-            Longitude = lon,
-            SpottedBy = name,
-            Accuracy = acc
+            Location = new MapCoordinates(lat, lon, acc),
+            LocatedBy = name,
+            LocatedAt = (DateTimeOffset)DateTime.Now
         };
 
-        CommercialTrailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
+        Trailer? model = await Service.Update(id, update, HttpContext.RequestAborted);
 
         if (model != null)
         {
