@@ -16,7 +16,7 @@ public class MapCoordinatesBinaryConverter : ValueConverter<MapCoordinates?, byt
         byte[] bytes = new byte[8 * 3];
         MemoryMarshal.Write(bytes.AsSpan(0, 8), mapCoordinant.Latitude);
         MemoryMarshal.Write(bytes.AsSpan(8, 8), mapCoordinant.Longitude);
-        MemoryMarshal.Write(bytes.AsSpan(16, 8), mapCoordinant.Longitude);
+        MemoryMarshal.Write(bytes.AsSpan(16, 8), mapCoordinant.Accuracy);
         return bytes;
     }
 
