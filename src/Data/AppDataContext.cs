@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OutsourceTracker.Data.Converters;
+using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Accounts;
 using OutsourceTracker.Models.Trailers;
 
@@ -24,9 +25,28 @@ public class AppDataContext : DbContext
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<Trailer>()
-            .Property(e => e.Location)
-            .HasConversion(new MapCoordinatesBinaryConverter())
-            .HasColumnType("varbinary(24)");
+        ApplyConverters(modelBuilder);
+    }
+
+    private static void ApplyConverters(ModelBuilder modelBuilder)
+    {
+        var converter = new MapCoordinatesBinaryConverter();
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(ITrackableEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
+            var locationProperty = entityType.FindProperty("Location") ?? entityType.AddProperty("Location", typeof(MapCoordinates?));
+
+            if (locationProperty?.ClrType == typeof(MapCoordinates?))
+            {
+                locationProperty.SetValueConverter(converter);
+                locationProperty.SetColumnType("varbinary(24)");
+                continue;
+            }
+        }
     }
 }

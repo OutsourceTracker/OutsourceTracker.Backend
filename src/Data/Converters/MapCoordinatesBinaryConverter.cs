@@ -7,7 +7,7 @@ namespace OutsourceTracker.Data.Converters;
 public class MapCoordinatesBinaryConverter : ValueConverter<MapCoordinates?, byte[]>
 
 {
-    public MapCoordinatesBinaryConverter() : base(v => v.HasValue ? PositionToBytes(v.Value) : null!, v => v == null ? (MapCoordinates?)null : BytesToPosition(v), new ConverterMappingHints(size: 24))
+    public MapCoordinatesBinaryConverter() : base(v => v.HasValue ? PositionToBytes(v.Value) : null!, v => v == null ? null : BytesToPosition(v), new ConverterMappingHints(size: 24))
     {
     }
 

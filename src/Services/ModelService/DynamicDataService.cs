@@ -5,19 +5,19 @@ using System.Runtime.CompilerServices;
 
 namespace OutsourceTracker.Services.ModelService;
 
-public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TModel, object>, IModelUpdateService<Guid, TModel, object> where TModel : class, IDataModel<Guid>, new()
+internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>, IModelDeleteService<TModel>, IModelUpdateService<TModel>, IModelLookupService<TModel> where TModel : class, IServiceModel<Guid>
 {
-    protected AppDataContext DataSource { get; }
+    protected AppDataContext DataContext { get; }
 
     protected ILogger Logger { get; }
 
-    protected virtual string ModelName => typeof(TModel).Name;
+    protected virtual string ModelName { get; } = typeof(TModel).Name;
 
     protected virtual DbSet<TModel> SelectedTable { get; }
 
     protected DynamicDataService(AppDataContext context, ILogger logger)
     {
-        DataSource = context ?? throw new ArgumentNullException(nameof(context));
+        DataContext = context ?? throw new ArgumentNullException(nameof(context));
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         var dbSetProperty = typeof(AppDataContext)
@@ -36,7 +36,7 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
     public async Task<TModel?> Get(Guid id, CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing GET for {ModelName} with ID {ModelId}", ModelName, id);
-        TModel? model = await SelectedTable.FindAsync([id], cancellationToken);
+        TModel? model = await FindModelById(id, cancellationToken);
 
         if (model != null)
         {
@@ -52,7 +52,7 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
     public async Task<bool> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing DELETE for {ModelName} with ID {ModelId}", ModelName, id);
-        TModel? model = await SelectedTable.FindAsync([id], cancellationToken);
+        TModel? model = await FindModelById(id, cancellationToken);
 
         if (model == null)
         {
@@ -127,8 +127,7 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
     public async Task<Guid?> Create(CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing CREATE for {ModelName}", ModelName);
-        TModel model = new();
-        await OnApplyDefaultValues(model, cancellationToken);
+        TModel model = InstantiateModel();
         await NormalizeModel(model, cancellationToken);
         await SelectedTable.AddAsync(model, cancellationToken);
         int affected = await OnWriteDatabase(model, cancellationToken);
@@ -142,6 +141,14 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
         Logger.LogError("CREATE executed for {ModelName}, but no rows affected", ModelName);
         throw new InvalidOperationException($"Failed to create {ModelName}: No rows affected.");
     }
+
+    #region Database Actions
+
+    protected virtual async Task<TModel?> FindModelById(Guid id, CancellationToken cancellationToken) => await SelectedTable.FindAsync([id], cancellationToken);
+
+    protected virtual async ValueTask<int> OnWriteDatabase(TModel model, CancellationToken cancellationToken) => await DataContext.SaveChangesAsync(cancellationToken);
+
+    #endregion
 
     #region Virtual Overrides
 
@@ -161,11 +168,6 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
         return Task.CompletedTask;
     }
 
-    protected virtual Task OnApplyDefaultValues(TModel newModel, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
     protected virtual Task NormalizeModel(TModel model, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
@@ -176,10 +178,7 @@ public abstract class DynamicDataService<TModel> : IModelQueryService<Guid, TMod
         return Task.CompletedTask;
     }
 
-    protected virtual async ValueTask<int> OnWriteDatabase(TModel model, CancellationToken cancellationToken)
-    {
-        return await DataSource.SaveChangesAsync(cancellationToken);
-    }
+    protected abstract TModel InstantiateModel();
 
     #endregion
 }
