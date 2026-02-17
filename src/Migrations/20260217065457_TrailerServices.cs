@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OutsourceTracker.Migrations
 {
     /// <inheritdoc />
-    public partial class MakeAccountIdNullable : Migration
+    public partial class TrailerServices : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,7 +17,8 @@ namespace OutsourceTracker.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ShortName = table.Column<string>(type: "TEXT", nullable: false),
-                    FullName = table.Column<string>(type: "TEXT", nullable: false)
+                    FullName = table.Column<string>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -36,7 +37,8 @@ namespace OutsourceTracker.Migrations
                     State = table.Column<int>(type: "INTEGER", nullable: false),
                     Location = table.Column<byte[]>(type: "varbinary(24)", nullable: true),
                     LocatedBy = table.Column<string>(type: "TEXT", nullable: true),
-                    LocatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    LocatedById = table.Column<Guid>(type: "TEXT", nullable: true),
+                    LocatedDate = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                     CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     AccountId = table.Column<Guid>(type: "TEXT", nullable: true)
                 },
@@ -55,6 +57,13 @@ namespace OutsourceTracker.Migrations
                 name: "IX_Trailers_AccountId",
                 table: "Trailers",
                 column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailers_FullName",
+                table: "Trailers",
+                column: "FullName",
+                unique: true,
+                descending: new bool[0]);
         }
 
         /// <inheritdoc />

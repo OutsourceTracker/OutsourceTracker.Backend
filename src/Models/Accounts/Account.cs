@@ -9,4 +9,6 @@ public class Account : IAccount<Guid>
     public string ShortName { get; set; }
 
     public string FullName { get; set; }
+
+    public DateTimeOffset CreatedOn { get; set; }
 }

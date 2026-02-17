@@ -1,9 +1,10 @@
 ﻿using OutsourceTracker.Data;
-using OutsourceTracker.Equipment.Trailers;
+using OutsourceTracker.Equipment;
+using System.Reflection;
 
 namespace OutsourceTracker.Services.ModelService;
 
-public abstract class EquipmentDataService<TModel> : DynamicDataService<TModel> where TModel : class, ITrailer<Guid>, new()
+internal abstract class EquipmentDataService<TModel> : DynamicDataService<TModel> where TModel : class, IEquipment<Guid>
 {
     protected EquipmentDataService(AppDataContext context, ILogger logger) : base(context, logger)
     {

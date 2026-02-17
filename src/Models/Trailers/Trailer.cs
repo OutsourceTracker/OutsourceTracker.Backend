@@ -1,10 +1,12 @@
-﻿using OutsourceTracker.Equipment;
+﻿using Microsoft.EntityFrameworkCore;
+using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Accounts;
 
 namespace OutsourceTracker.Models.Trailers;
 
+[Index(nameof(FullName), IsUnique = true, AllDescending = true)]
 public class Trailer : ITrailer<Guid>
 {
     public Guid Id { get; set; }
@@ -23,7 +25,9 @@ public class Trailer : ITrailer<Guid>
 
     public string? LocatedBy { get; set; }
 
-    public DateTimeOffset? LocatedAt { get; set; }
+    public Guid? LocatedById { get; set; }
+
+    public DateTimeOffset? LocatedDate { get; set; }
 
     public DateTimeOffset CreatedOn { get; set; }
 

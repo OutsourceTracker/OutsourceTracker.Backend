@@ -11,19 +11,22 @@ using OutsourceTracker.Data;
 namespace OutsourceTracker.Migrations
 {
     [DbContext(typeof(AppDataContext))]
-    [Migration("20260210100745_MakeAccountIdNullable")]
-    partial class MakeAccountIdNullable
+    [Migration("20260217065457_TrailerServices")]
+    partial class TrailerServices
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
 
             modelBuilder.Entity("OutsourceTracker.Models.Accounts.Account", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FullName")
@@ -55,10 +58,13 @@ namespace OutsourceTracker.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LocatedAt")
+                    b.Property<string>("LocatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("LocatedBy")
+                    b.Property<Guid?>("LocatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LocatedDate")
                         .HasColumnType("TEXT");
 
                     b.Property<byte[]>("Location")
@@ -81,6 +87,10 @@ namespace OutsourceTracker.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("FullName")
+                        .IsUnique()
+                        .IsDescending();
 
                     b.ToTable("Trailers");
                 });
