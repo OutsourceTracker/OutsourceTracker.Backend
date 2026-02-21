@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OutsourceTracker.Equipment;
+using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Trailers;
 using OutsourceTracker.Services.ModelService;
@@ -131,5 +133,41 @@ public class TrailersController : ControllerBase
         }
 
         return NotFound(id);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("[action]")]
+    public async IAsyncEnumerable<object> GetExcelUpdate([FromQuery]string authKey, [FromQuery] Guid? accountId = null)
+    {
+        if (authKey != "JBHUNT_WINCO")
+        {
+            Response.StatusCode = StatusCodes.Status401Unauthorized;
+            yield break;
+        }
+
+        var trailerQuery = Service.Search(null, HttpContext.RequestAborted);
+
+        var e = trailerQuery.GetAsyncEnumerator(HttpContext.RequestAborted);
+        
+        while (await e.MoveNextAsync())
+        {
+            string mapsLink = e.Current.Location.HasValue
+                ? $"https://www.google.com/maps/search/?api=1&query={e.Current.Location.Value.Latitude},{e.Current.Location.Value.Longitude}"
+                : "No Location";
+
+            yield return new
+            {
+                Id = e.Current.Id,
+                Prefix = e.Current.Prefix,
+                Name = e.Current.Name,
+                State = Enum.GetName(typeof(EquipmentState), e.Current.State),
+                Type = Enum.GetName(typeof(TrailerType), e.Current.Type),
+                YardName = "Not Implemented Yet",
+                AttachedTo = string.Empty,
+                Location = mapsLink,
+                LocatedBy = e.Current.LocatedBy,
+                LocatedDate = e.Current.LocatedDate.HasValue ? e.Current.LocatedDate.Value.ToLocalTime().ToString("MM-dd-yyyy HH:mm:ss") : null
+            };
+        }
     }
 }
