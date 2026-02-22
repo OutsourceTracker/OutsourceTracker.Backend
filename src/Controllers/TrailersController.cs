@@ -108,7 +108,7 @@ public class TrailersController : ControllerBase
     [HttpPut("{id}/[action]")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(DBNull))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(DBNull))]
-    public async Task<IActionResult> Spot(Guid id, [FromBody] MapCoordinates coordinates)
+    public async Task<IActionResult> Spot(Guid id, [FromBody] Vector2 coordinates)
     {
         Guid userId = Guid.Empty;
 
@@ -152,7 +152,7 @@ public class TrailersController : ControllerBase
         while (await e.MoveNextAsync())
         {
             string mapsLink = e.Current.Location.HasValue
-                ? $"https://www.google.com/maps/search/?api=1&query={e.Current.Location.Value.Latitude},{e.Current.Location.Value.Longitude}"
+                ? $"https://www.google.com/maps/search/?api=1&query={e.Current.Location.Value.X},{e.Current.Location.Value.Y}"
                 : "No Location";
 
             yield return new
@@ -162,7 +162,7 @@ public class TrailersController : ControllerBase
                 Name = e.Current.Name,
                 State = Enum.GetName(typeof(EquipmentState), e.Current.State),
                 Type = Enum.GetName(typeof(TrailerType), e.Current.Type),
-                YardName = "Not Implemented Yet",
+                YardName = e.Current.ZoneName,
                 AttachedTo = string.Empty,
                 Location = mapsLink,
                 LocatedBy = e.Current.LocatedBy,

@@ -21,7 +21,9 @@ public class Trailer : ITrailer<Guid>
 
     public EquipmentState State { get; set; }
 
-    public MapCoordinates? Location { get; set; }
+    public Vector2? Location { get; set; }
+
+    public double? LocationAccuracy { get; set; }
 
     public string? LocatedBy { get; set; }
 
@@ -34,4 +36,9 @@ public class Trailer : ITrailer<Guid>
     public Guid? AccountId { get; set; }
 
     public Account? Account { get; set; }
+    
+    public Guid? ZoneId { get; set; }
+
+    public string? ZoneName { get; set; }
+    
 }
