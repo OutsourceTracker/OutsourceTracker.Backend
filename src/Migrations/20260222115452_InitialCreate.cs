@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OutsourceTracker.Migrations
 {
     /// <inheritdoc />
-    public partial class TrailerServices : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,6 +26,19 @@ namespace OutsourceTracker.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Zones",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    Boundry = table.Column<byte[]>(type: "BLOB", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Zones", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Trailers",
                 columns: table => new
                 {
@@ -35,12 +48,15 @@ namespace OutsourceTracker.Migrations
                     Type = table.Column<int>(type: "INTEGER", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: false),
                     State = table.Column<int>(type: "INTEGER", nullable: false),
-                    Location = table.Column<byte[]>(type: "varbinary(24)", nullable: true),
+                    Location = table.Column<byte[]>(type: "BLOB", nullable: true),
+                    LocationAccuracy = table.Column<double>(type: "REAL", nullable: true),
                     LocatedBy = table.Column<string>(type: "TEXT", nullable: true),
                     LocatedById = table.Column<Guid>(type: "TEXT", nullable: true),
                     LocatedDate = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                     CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    AccountId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    AccountId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    ZoneId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    ZoneName = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -71,6 +87,9 @@ namespace OutsourceTracker.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Trailers");
+
+            migrationBuilder.DropTable(
+                name: "Zones");
 
             migrationBuilder.DropTable(
                 name: "BusinessAccounts");

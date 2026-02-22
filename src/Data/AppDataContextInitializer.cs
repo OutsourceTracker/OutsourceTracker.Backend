@@ -16,7 +16,6 @@ public class AppDataContextInitializer : IHostedService
     {
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDataContext>();
-        await db.Database.EnsureCreatedAsync(cancellationToken);
         await db.Database.MigrateAsync(cancellationToken);
     }
 

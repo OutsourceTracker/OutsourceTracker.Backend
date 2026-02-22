@@ -11,8 +11,8 @@ using OutsourceTracker.Data;
 namespace OutsourceTracker.Migrations
 {
     [DbContext(typeof(AppDataContext))]
-    [Migration("20260222092742_AddZoneControl")]
-    partial class AddZoneControl
+    [Migration("20260222115452_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
