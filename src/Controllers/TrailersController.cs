@@ -9,9 +9,9 @@ using System.Security.Claims;
 
 namespace OutsourceTracker.Controllers;
 
-[Route("[controller]")]
 [ApiController]
-[Authorize(Roles = "Trailers.Admin")]
+[Authorize(Roles = "Trailers.Read")]
+[Route("[controller]")]
 public class TrailersController : ControllerBase
 {
     private TrailerDataService Service { get; }
@@ -49,6 +49,7 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Post()
@@ -66,10 +67,11 @@ public class TrailersController : ControllerBase
             return BadRequest("Failed to create the trailer.");
         }
 
-        return CreatedAtAction(nameof(Get), new { id = id.Value });
+        return CreatedAtAction(nameof(Get), id.Value);
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id)
@@ -85,6 +87,7 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -106,9 +109,10 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPut("{id}/[action]")]
+    [Authorize(Roles = "Trailers.Write,Trailers.UpdateLocation")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(DBNull))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(DBNull))]
-    public async Task<IActionResult> Spot(Guid id, [FromBody] Vector2 coordinates)
+    public async Task<IActionResult> Spot(Guid id, [FromBody] Vector2 coordinates, [FromQuery] double? acc = 0.00)
     {
         Guid userId = Guid.Empty;
 
@@ -120,6 +124,7 @@ public class TrailersController : ControllerBase
         var update = new
         {
             Location = coordinates,
+            LocationAccuracy = acc.GetValueOrDefault(),
             LocatedBy = User.FindFirstValue("name") ?? "Unknown User",
             LocatedById = userId,
             LocatedDate = DateTimeOffset.UtcNow

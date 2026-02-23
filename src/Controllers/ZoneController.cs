@@ -1,12 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OutsourceTracker.Data;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Zones;
 
 namespace OutsourceTracker.Controllers;
 
-[Route("[controller]")]
 [ApiController]
+[Authorize(Roles = "Zones.Read")]
+[Route("[controller]")]
 public class ZoneController : ControllerBase
 {
     private AppDataContext Context { get; init; }
@@ -42,6 +44,7 @@ public class ZoneController : ControllerBase
     }
 
     [HttpPost("{zoneName}")]
+    [Authorize(Roles = "Zones.Write")]
     public async Task<IActionResult> Post(string zoneName, [FromBody] ICollection<Vector2> points)
     {
         if (string.IsNullOrWhiteSpace(zoneName))
@@ -62,6 +65,7 @@ public class ZoneController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Zones.Write")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var zone = await Context.Zones.FindAsync([id], HttpContext.RequestAborted);
