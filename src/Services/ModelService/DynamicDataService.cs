@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OutsourceTracker.Data;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -11,14 +12,23 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
 
     protected ILogger Logger { get; }
 
+    protected IServiceProvider Services { get; }
+
     protected virtual string ModelName { get; } = typeof(TModel).Name;
 
     protected virtual DbSet<TModel> SelectedTable { get; }
 
-    protected DynamicDataService(AppDataContext context, ILogger logger)
+    private readonly Action<TModel, Guid> _setModelId; 
+    private readonly Action<TModel, DateTimeOffset> _setModelCreateOn; 
+
+    protected DynamicDataService(IServiceProvider services)
     {
-        DataContext = context ?? throw new ArgumentNullException(nameof(context));
-        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        Services = services;
+        DataContext = services.GetRequiredService<AppDataContext>();
+        
+        ILoggerFactory factory = services.GetRequiredService<ILoggerFactory>();
+        Type categoryType = GetType();
+        Logger = factory.CreateLogger(categoryType);
 
         var dbSetProperty = typeof(AppDataContext)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -30,7 +40,9 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         }
 
         Logger.LogDebug("Selected DbSet for {ModelName}: {TableName}", ModelName, dbSetProperty.Name);
-        SelectedTable = (DbSet<TModel>)dbSetProperty.GetValue(context)!;
+        SelectedTable = (DbSet<TModel>)dbSetProperty.GetValue(DataContext)!;
+        _setModelId = SetProperty<TModel, Guid>("Id");
+        _setModelCreateOn = SetProperty<TModel, DateTimeOffset>("CreatedOn"); 
     }
 
     public async Task<TModel?> Get(Guid id, CancellationToken cancellationToken = default)
@@ -49,7 +61,7 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         return null;
     }
 
-    public async Task<bool> Delete(Guid id, CancellationToken cancellationToken = default)
+    public async Task<int> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing DELETE for {ModelName} with ID {ModelId}", ModelName, id);
         TModel? model = await FindModelById(id, cancellationToken);
@@ -57,7 +69,7 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         if (model == null)
         {
             Logger.LogWarning("No {ModelName} found with ID {ModelId} for deletion", ModelName, id);
-            return false;
+            throw new KeyNotFoundException($"No {ModelName} found with ID {id} for deletion");
         }
 
         await OnModelFound(model, nameof(Delete), cancellationToken);
@@ -67,11 +79,11 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         if (affected > 0)
         {
             Logger.LogInformation("Deleted {ModelName} with ID {ModelId}. Affected rows: {AffectedRows}", ModelName, id, affected);
-            return true;
+            return affected;
         }
 
         Logger.LogDebug("DELETE executed for {ModelName} with ID {ModelId}, but no rows affected", ModelName, id);
-        return false;
+        return 0;
     }
 
     public async IAsyncEnumerable<TModel> Search(object? searchOptions = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -90,14 +102,14 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         }
     }
 
-    public async Task<TModel?> Update(Guid id, object request, CancellationToken cancellationToken = default)
+    public async Task<TModel> Update(Guid id, object request, CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing UPDATE for {ModelName} with ID {ModelId} and request {Request}", ModelName, id, request);
 
         if (request == null)
         {
             Logger.LogWarning("Skipping UPDATE for {ModelName} with ID {ModelId}: Request parameters are empty", ModelName, id);
-            return null;
+            ArgumentNullException.ThrowIfNull(request, nameof(request));
         }
 
         TModel? model = await SelectedTable.FindAsync([id], cancellationToken);
@@ -105,7 +117,7 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         if (model == null)
         {
             Logger.LogWarning("No {ModelName} found with ID {ModelId} for update", ModelName, id);
-            return null;
+            throw new KeyNotFoundException($"No {ModelName} found with ID {id} for update");
         }
 
         await OnModelFound(model, nameof(Update), cancellationToken);
@@ -121,25 +133,58 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         }
 
         Logger.LogDebug("No updates applied to {ModelName} with ID {ModelId}: No properties changed", ModelName, id);
-        return null;
+        return model;
     }
 
-    public async Task<Guid?> Create(CancellationToken cancellationToken = default)
+    public async Task<TModel?> Create(TModel? model = null, CancellationToken cancellationToken = default)
     {
         Logger.LogDebug("Executing CREATE for {ModelName}", ModelName);
-        TModel model = InstantiateModel();
+        model ??= InstantiateModel();
         await NormalizeModel(model, cancellationToken);
+
+        PropertyInfo? idProp = model.GetType().GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+
+        if (idProp != null)
+        {
+            idProp.SetValue(model, GenerateNewId());
+        }
+
+
         await SelectedTable.AddAsync(model, cancellationToken);
         int affected = await OnWriteDatabase(model, cancellationToken);
 
         if (affected > 0)
         {
             Logger.LogInformation("Created new {ModelName} with ID {ModelId}. Affected rows: {AffectedRows}", ModelName, model.Id, affected);
-            return model.Id;
+            return model;
         }
 
         Logger.LogError("CREATE executed for {ModelName}, but no rows affected", ModelName);
         throw new InvalidOperationException($"Failed to create {ModelName}: No rows affected.");
+    }
+
+    protected TModel InstantiateModel(TModel? model = null, CancellationToken cancellationToken = default)
+    {
+        model ??= ActivatorUtilities.CreateInstance<TModel>(Services, cancellationToken, this);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        Guid id = Guid.CreateVersion7(now);
+        
+        _setModelId(model, id);
+        _setModelCreateOn(model, now);
+        OnModelCreated(model, cancellationToken);
+        return model;
+    }
+
+    private static Action<T, TValue> SetProperty<T, TValue>(string propertyName)
+    {
+        var param0 = Expression.Parameter(typeof(T), "x");
+        var param1 = Expression.Parameter(typeof(TValue), "y");
+        var prop = Expression.Property(param0, propertyName);
+        var assign = Expression.Assign(prop, param1);
+
+        var lambda = Expression.Lambda<Action<T, TValue>>(assign, param0, param1);
+        var setter = lambda.Compile();
+        return setter;
     }
 
     #region Database Actions
@@ -178,7 +223,12 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         return Task.CompletedTask;
     }
 
-    protected abstract TModel InstantiateModel();
+    protected virtual Task OnModelCreated(TModel model, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    protected Guid GenerateNewId() => Guid.CreateVersion7(DateTimeOffset.UtcNow);
 
     #endregion
 }
