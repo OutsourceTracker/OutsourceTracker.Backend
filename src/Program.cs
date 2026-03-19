@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using OutsourceTracker.Data;
-using OutsourceTracker.Models.Trailers;
 using OutsourceTracker.Services.ModelService;
 
 namespace OutsourceTracker.Backend;
@@ -56,11 +55,8 @@ public class Program
 
         builder.Services.AddHostedService<AppDataContextInitializer>();
 
-        builder.Services.AddScoped<TrailerDataService>()
-            .AddScoped<IModelCreateService<Trailer>>(s => s.GetRequiredService<TrailerDataService>())
-            .AddScoped<IModelDeleteService<Trailer>>(s => s.GetRequiredService<TrailerDataService>())
-            .AddScoped<IModelUpdateService<Trailer>>(s => s.GetRequiredService<TrailerDataService>())
-            .AddScoped<IModelLookupService<Trailer>>(s => s.GetRequiredService<TrailerDataService>());
+        builder.Services.AddScoped<TrailerDataService>();
+        builder.Services.AddScoped<ZoneDataService>();
 
         var app = builder.Build();
         app.UseCors();
