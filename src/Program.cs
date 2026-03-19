@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Tokens;
+using OutsourceTracker.Authentication;
 using OutsourceTracker.Data;
+using OutsourceTracker.Services;
 using OutsourceTracker.Services.ModelService;
+using SendGrid.Extensions.DependencyInjection;
+using System.Text;
 
 namespace OutsourceTracker.Backend;
 
@@ -25,12 +30,38 @@ public class Program
             });
         });
 
+        builder.Services.AddSendGrid(options =>
+        {
+            options.ApiKey = builder.Configuration["SendGrid:ApiKey"]!;
+            options.SetDataResidency("global");
+        });
+        builder.Services.AddScoped<EmailService>();
+
+        builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<AppDataContext>()
+            .AddDefaultTokenProviders();
+
         builder.Services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         })
-        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), JwtBearerDefaults.AuthenticationScheme);
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                ValidAudience = builder.Configuration["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            };
+            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        });
+
 
         builder.Services.AddAuthorization(options =>
         {
@@ -55,6 +86,7 @@ public class Program
 
         builder.Services.AddHostedService<AppDataContextInitializer>();
 
+        builder.Services.AddScoped<JwtTokenService>();
         builder.Services.AddScoped<TrailerDataService>();
         builder.Services.AddScoped<ZoneDataService>();
 
