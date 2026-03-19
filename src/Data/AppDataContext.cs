@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using OutsourceTracker.Authentication;
 using OutsourceTracker.Data.Converters;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Accounts;
@@ -8,7 +11,7 @@ using System.Text.Json;
 
 namespace OutsourceTracker.Data;
 
-public class AppDataContext : DbContext
+public class AppDataContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public DbSet<Account> BusinessAccounts => Set<Account>();
 
@@ -54,6 +57,7 @@ public class AppDataContext : DbContext
         });
 
         ApplyConverters(modelBuilder);
+        base.OnModelCreating(modelBuilder);
     }
 
     private static void ApplyConverters(ModelBuilder modelBuilder)
