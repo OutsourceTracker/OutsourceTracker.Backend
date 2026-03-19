@@ -1,12 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using OutsourceTracker.Data;
 using OutsourceTracker.Equipment;
 
 namespace OutsourceTracker.Services.ModelService;
 
 internal abstract class EquipmentDataService<TModel> : DynamicDataService<TModel> where TModel : class, IEquipment<Guid>
 {
-    protected EquipmentDataService(AppDataContext context, ILogger logger) : base(context, logger)
+    protected EquipmentDataService(IServiceProvider services) : base(services)
     {
     }
 
@@ -45,5 +44,13 @@ internal abstract class EquipmentDataService<TModel> : DynamicDataService<TModel
         }
 
         return updated;
+    }
+
+    protected override Task OnModelCreated(TModel model, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        model.State = EquipmentState.Available;
+        model.Name ??= new string(model.Id.ToString("N").TakeLast(6).ToArray());
+        return base.OnModelCreated(model, cancellationToken);
     }
 }
