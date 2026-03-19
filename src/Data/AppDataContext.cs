@@ -4,6 +4,7 @@ using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Accounts;
 using OutsourceTracker.Models.Trailers;
 using OutsourceTracker.Models.Zones;
+using System.Text.Json;
 
 namespace OutsourceTracker.Data;
 
@@ -32,6 +33,24 @@ public class AppDataContext : DbContext
         {
             ent.Property(z => z.Boundry)
             .HasConversion(new PolygonBinaryConverter());
+
+            ent.Property(z => z.EntryPoints)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
+                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
+                !);
+
+            ent.Property(z => z.ExitPoints)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
+                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
+                !);
+
+            ent.Property(z => z.DockPoints)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
+                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
+                !);
         });
 
         ApplyConverters(modelBuilder);
