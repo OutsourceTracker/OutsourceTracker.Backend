@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OutsourceTracker.Data;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Zones;
+using OutsourceTracker.Services.ModelService;
 
 namespace OutsourceTracker.Controllers;
 
@@ -11,17 +11,17 @@ namespace OutsourceTracker.Controllers;
 [Route("[controller]")]
 public class ZoneController : ControllerBase
 {
-    private AppDataContext Context { get; init; }
+    private ZoneDataService Context { get; }
 
-    public ZoneController(AppDataContext context)
+    public ZoneController(IServiceProvider service)
     {
-        Context = context;
+        Context = service.GetRequiredService<ZoneDataService>();
     }
 
     [HttpGet]
     public async IAsyncEnumerable<Zone> Get()
     {
-        var zones = Context.Zones.AsAsyncEnumerable();
+        var zones = Context.Search(cancellationToken: HttpContext.RequestAborted);
 
         await foreach (var zone in zones)
         {
@@ -29,54 +29,124 @@ public class ZoneController : ControllerBase
         }
     }
 
+    [HttpGet("[action]")]
+    [AllowAnonymous]
+    public async Task<IActionResult> IsInZone([FromQuery] double x, [FromQuery] double y)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+        Vector2 coords = new Vector2(x, y);
+        var zones = Context.Search(cancellationToken: HttpContext.RequestAborted);
+        
+        await foreach (var zone in zones)
+        {
+            if (zone.Boundry.Contains(coords))
+            {
+                return Ok(new { zone.Id, zone.ShortCode, zone.FullName });
+            }
+        }
+
+        return NotFound();
+    }
+
 
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var zone = await Context.Zones.FindAsync([id], HttpContext.RequestAborted);
-        
-        if (zone is null)
+        try
         {
-            return NotFound();
-        }
+            var zone = await Context.Get(id, HttpContext.RequestAborted);
 
-        return Ok(zone);
+            if (zone is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(zone);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(id);
+        }
+        catch (ArgumentNullException)
+        {
+            return BadRequest(nameof(id));
+        }
     }
 
-    [HttpPost("{zoneName}")]
-    [Authorize(Roles = "Zones.Write")]
-    public async Task<IActionResult> Post(string zoneName, [FromBody] ICollection<Vector2> points)
+    [HttpPost("{zoneId}")]
+    //[Authorize(Roles = "Zones.Write")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Post(string zoneId, [FromBody] ZoneBuilder model)
     {
-        if (string.IsNullOrWhiteSpace(zoneName))
+        if (!ModelState.IsValid)
         {
-            return BadRequest("Zone name cannot be empty.");
+            return BadRequest(ModelState);
         }
 
-        var zone = new Zone
+        if (model.BoundryPoints.Count < 4 || model.BoundryPoints.Distinct().Count() < 3)
         {
-            Id = Guid.CreateVersion7(DateTimeOffset.UtcNow),
-            Name = zoneName,
-            Boundry = new Polygon(points)
-        };
+            return BadRequest("Need more points");
+        }
 
-        await Context.Zones.AddAsync(zone, HttpContext.RequestAborted);
-        await Context.SaveChangesAsync(HttpContext.RequestAborted);
-        return CreatedAtAction(nameof(Get), new { id = zone.Id });
+        try
+        {
+            Zone zone = new Zone()
+            {
+                ShortCode = zoneId,
+                FullName = model.FullName,
+                Boundry = new Polygon(model.BoundryPoints),
+                EntryPoints = model.EntryPoints ?? new List<Vector2>(),
+                ExitPoints = model.ExitPoints ?? new List<Vector2>(),
+                DockPoints = model.DockPouints ?? new List<Vector2>()
+            };
+
+            Zone? created = await Context.Create(zone, HttpContext.RequestAborted);
+            return CreatedAtAction(nameof(Get), new { id = zone.Id }, created);
+        }
+        catch (ArgumentNullException)
+        {
+            return BadRequest();
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
+        }
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Zones.Write")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var zone = await Context.Zones.FindAsync([id], HttpContext.RequestAborted);
-        
-        if (zone is null)
+        try
         {
-            return NotFound();
-        }
+            int deleted = await Context.Delete(id, HttpContext.RequestAborted);
 
-        Context.Zones.Remove(zone);
-        await Context.SaveChangesAsync(HttpContext.RequestAborted);
-        return NoContent();
+            if (deleted > 0)
+            {
+                return Ok(id);
+            }
+
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(id);
+        }
+    }
+
+    public class ZoneBuilder
+    {
+        public string FullName { get; set; }
+
+        public ICollection<Vector2> BoundryPoints { get; set; }
+
+        public ICollection<Vector2>? EntryPoints { get; set; }
+
+        public ICollection<Vector2>? ExitPoints { get; set; }
+
+        public ICollection<Vector2>? DockPouints { get; set; }
     }
 }
