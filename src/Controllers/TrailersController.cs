@@ -60,14 +60,16 @@ public class TrailersController : ControllerBase
         }
 
 
-        Guid? id = await Service.Create(HttpContext.RequestAborted);
-
-        if (!id.HasValue)
+        try
         {
-            return BadRequest("Failed to create the trailer.");
-        }
+            Trailer? trailer = await Service.Create(null, HttpContext.RequestAborted);
 
-        return CreatedAtAction(nameof(Get), id.Value);
+            return trailer == null ? BadRequest("Failed to create the trailer.") : CreatedAtAction(nameof(Get), new { trailer.Id }, trailer);
+        }
+        catch (InvalidOperationException ioe)
+        {
+            return Problem(ioe.Message, statusCode: StatusCodes.Status500InternalServerError, title: ioe.GetType().Name, type: ioe.GetType().FullName);
+        }
     }
 
     [HttpDelete("{id}")]
@@ -76,14 +78,19 @@ public class TrailersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        bool response = await Service.Delete(id, HttpContext.RequestAborted);
-
-        if (!response)
+        try
+        {
+            int response = await Service.Delete(id, HttpContext.RequestAborted);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException)
         {
             return NotFound();
         }
-
-        return NoContent();
+        catch (ArgumentNullException)
+        {
+            return BadRequest();
+        }
     }
 
     [HttpPut("{id}")]
@@ -98,14 +105,25 @@ public class TrailersController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        Trailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
-
-        if (model == null)
+        try
         {
-            return NotFound();
-        }
+            Trailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
 
-        return AcceptedAtAction(nameof(Get), new { id }, model);
+            if (model == null)
+            {
+                return NotFound();
+            }
+
+            return AcceptedAtAction(nameof(Get), new { id }, model);
+        }
+        catch (ArgumentNullException)
+        {
+            return BadRequest(nameof(request));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(id);
+        }
     }
 
     [HttpPut("{id}/[action]")]
@@ -130,14 +148,19 @@ public class TrailersController : ControllerBase
             LocatedDate = DateTimeOffset.UtcNow
         };
 
-        Trailer? model = await Service.Update(id, update, HttpContext.RequestAborted);
-
-        if (model != null)
+        try
         {
+            Trailer? model = await Service.Update(id, update, HttpContext.RequestAborted);
             return AcceptedAtAction(nameof(Get), new { id }, model);
         }
-
-        return NotFound(id);
+        catch (ArgumentNullException)
+        {
+            return BadRequest();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(id);
+        }
     }
 
     [AllowAnonymous]
