@@ -33,7 +33,7 @@ internal abstract class EquipmentDataService<TModel> : DynamicDataService<TModel
                 if (zone != null)
                 {
                     model.ZoneId = zone.Id;
-                    model.ZoneName = zone.Name;
+                    model.ZoneName = zone.ShortCode;
                 }
                 else
                 {
