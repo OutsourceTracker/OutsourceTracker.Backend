@@ -4,9 +4,19 @@ namespace OutsourceTracker.Models.Zones;
 
 public class Zone : IZone<Guid>
 {
-    public required Guid Id { get; init; }
+    public Guid Id { get; set; }
 
-    public required string Name { get; set; }
+    public string ShortCode { get; set; }
 
-    public Polygon Boundry { get; init; }
+    public string FullName { get; set; }
+
+    public Polygon Boundry { get; set; }
+
+    public ICollection<Vector2> EntryPoints { get; set; }
+
+    public ICollection<Vector2> ExitPoints { get; set; }
+
+    public ICollection<Vector2> DockPoints { get; set; }
+
+    public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
 }
