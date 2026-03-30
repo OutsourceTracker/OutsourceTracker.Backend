@@ -32,4 +32,28 @@ public class EmailService
             throw new Exception($"Email sending failed: {response.StatusCode} - {body}");
         }
     }
+
+    public async Task SendTemplateEmailAsync(string toEmail, string templateId, Dictionary<string, string> substitutions)
+    {
+        var msg = new SendGridMessage()
+        {
+            From = new EmailAddress(_config["FromEmail"], _config["FromName"]),
+            TemplateId = templateId,
+            Personalizations = new List<Personalization>
+            {
+                new Personalization
+                {
+                    Tos = [new EmailAddress(toEmail)],
+                    TemplateData = substitutions
+                }
+            }
+        };
+        var response = await _client.SendEmailAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Body.ReadAsStringAsync();
+            throw new Exception($"Email sending failed: {response.StatusCode} - {body}");
+        }
+    }
 }
