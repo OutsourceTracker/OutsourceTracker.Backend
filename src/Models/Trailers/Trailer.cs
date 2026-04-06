@@ -9,7 +9,7 @@ namespace OutsourceTracker.Models.Trailers;
 [Index(nameof(FullName), IsUnique = true, AllDescending = true)]
 public class Trailer : ITrailer<Guid>
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; set; } = Guid.Empty;
 
     public string Prefix { get; set; }
 
@@ -40,5 +40,4 @@ public class Trailer : ITrailer<Guid>
     public Guid? ZoneId { get; set; }
 
     public string? ZoneName { get; set; }
-    
 }

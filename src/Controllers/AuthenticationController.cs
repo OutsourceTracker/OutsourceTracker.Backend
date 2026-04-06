@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using OutsourceTracker.Authentication;
 using OutsourceTracker.Services;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Web;
 

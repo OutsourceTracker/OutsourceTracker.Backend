@@ -7,7 +7,7 @@ using OutsourceTracker.Services.ModelService;
 namespace OutsourceTracker.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Zones.Read")]
+[Authorize]
 [Route("[controller]")]
 public class ZoneController : ControllerBase
 {
@@ -77,7 +77,6 @@ public class ZoneController : ControllerBase
     }
 
     [HttpPost("{zoneId}")]
-    //[Authorize(Roles = "Zones.Write")]
     [AllowAnonymous]
     public async Task<IActionResult> Post(string zoneId, [FromBody] ZoneBuilder model)
     {
@@ -117,7 +116,6 @@ public class ZoneController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Zones.Write")]
     public async Task<IActionResult> Delete(Guid id)
     {
         try

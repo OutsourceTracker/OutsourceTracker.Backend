@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace OutsourceTracker.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Trailers.Read")]
+[Authorize]
 [Route("[controller]")]
 public class TrailersController : ControllerBase
 {
@@ -49,7 +49,6 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Post()
@@ -73,7 +72,6 @@ public class TrailersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id)
@@ -94,7 +92,6 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Trailers.Write")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -127,7 +124,6 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPut("{id}/[action]")]
-    [Authorize(Roles = "Trailers.Write,Trailers.UpdateLocation")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(DBNull))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(DBNull))]
     public async Task<IActionResult> Spot(Guid id, [FromBody] Vector2 coordinates, [FromQuery] double? acc = 0.00)
