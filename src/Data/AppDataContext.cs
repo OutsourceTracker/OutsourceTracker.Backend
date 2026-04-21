@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OutsourceTracker.Authentication;
 using OutsourceTracker.Data.Converters;
+using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Accounts;
-using OutsourceTracker.Models.Trailers;
 using OutsourceTracker.Models.Zones;
 using System.Text.Json;
 
@@ -15,7 +15,7 @@ public class AppDataContext : IdentityDbContext<ApplicationUser, IdentityRole<Gu
 {
     public DbSet<Account> BusinessAccounts => Set<Account>();
 
-    public DbSet<Trailer> Trailers => Set<Trailer>();
+    public DbSet<TrailerDbModel> Trailers => Set<TrailerDbModel>();
 
     public DbSet<Zone> Zones => Set<Zone>();
 
@@ -25,10 +25,17 @@ public class AppDataContext : IdentityDbContext<ApplicationUser, IdentityRole<Gu
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Trailer>()
+        modelBuilder.Entity<TrailerDbModel>()
             .HasOne(e => e.Account)
             .WithMany()
             .HasForeignKey(e => e.AccountId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<TrailerDbModel>()
+            .HasOne(e => e.Zone)
+            .WithMany()
+            .HasForeignKey(e => e.ZoneId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 

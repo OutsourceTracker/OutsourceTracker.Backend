@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
-using OutsourceTracker.Models.Trailers;
 using OutsourceTracker.Services.ModelService;
 using System.Security.Claims;
 
@@ -22,8 +21,8 @@ public class TrailersController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer[]))]
-    public IAsyncEnumerable<Trailer> Get()
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TrailerModel[]))]
+    public IAsyncEnumerable<TrailerModel> Get()
     {
         var parameters = Request.Query.ToDictionary(
             q => q.Key,
@@ -34,11 +33,11 @@ public class TrailersController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TrailerModel))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id)
     {
-        Trailer? model = await Service.Get(id, HttpContext.RequestAborted);
+        TrailerModel? model = await Service.Get(id, HttpContext.RequestAborted);
 
         if (model == null)
         {
@@ -49,19 +48,24 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(Trailer))]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(TrailerModel))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Post()
+    public async Task<IActionResult> Post([FromBody] TrailerCreateModel model)
     {
-        if (!ModelState.IsValid)
+        if (!ModelState.IsValid || model == null)
         {
             return BadRequest(ModelState);
         }
 
-
         try
         {
-            Trailer? trailer = await Service.Create(null, HttpContext.RequestAborted);
+            TrailerDbModel trailer = new();
+            
+            if (!trailer.ApplyObjectToModel(model))
+            { 
+            }
+
+            TrailerModel? trailer = await Service.Create(model, HttpContext.RequestAborted);
 
             return trailer == null ? BadRequest("Failed to create the trailer.") : CreatedAtAction(nameof(Get), new { trailer.Id }, trailer);
         }
@@ -92,7 +96,7 @@ public class TrailersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(Trailer))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TrailerModel))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Put(Guid id, [FromBody] IDictionary<string, object> request)
@@ -104,7 +108,7 @@ public class TrailersController : ControllerBase
 
         try
         {
-            Trailer? model = await Service.Update(id, request, HttpContext.RequestAborted);
+            TrailerModel? model = await Service.Update(id, request, HttpContext.RequestAborted);
 
             if (model == null)
             {
@@ -146,7 +150,7 @@ public class TrailersController : ControllerBase
 
         try
         {
-            Trailer? model = await Service.Update(id, update, HttpContext.RequestAborted);
+            TrailerModel? model = await Service.Update(id, update, HttpContext.RequestAborted);
             return AcceptedAtAction(nameof(Get), new { id }, model);
         }
         catch (ArgumentNullException)
@@ -194,4 +198,10 @@ public class TrailersController : ControllerBase
             };
         }
     }
+
+    #region Controller Specific Classes
+
+    public record TrailerCreateModel(string Prefix, string Name, TrailerType Type = TrailerType.Van);
+
+    #endregion
 }

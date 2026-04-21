@@ -1,15 +1,14 @@
 ﻿using OutsourceTracker.Equipment.Trailers;
-using OutsourceTracker.Models.Trailers;
 
 namespace OutsourceTracker.Services.ModelService;
 
-internal sealed class TrailerDataService : EquipmentDataService<Trailer>
+internal sealed class TrailerDataService : EquipmentDataService<TrailerDbModel>
 {
     public TrailerDataService(IServiceProvider services) : base(services)
     {
     }
 
-    protected override Task NormalizeModel(Trailer model, CancellationToken cancellationToken)
+    protected override Task NormalizeModel(TrailerDbModel model, CancellationToken cancellationToken)
     {
         model.Prefix = model.Prefix.ToUpperInvariant();
         model.Name = model.Name.ToUpperInvariant();
@@ -17,11 +16,16 @@ internal sealed class TrailerDataService : EquipmentDataService<Trailer>
         return base.NormalizeModel(model, cancellationToken);
     }
 
-    protected override Task OnModelCreated(Trailer model, CancellationToken cancellationToken)
+    protected override Task OnModelCreated(TrailerDbModel model, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         model.Prefix ??= "NEW";
-        model.Type = TrailerType.Van;
+        
+        if (model.Type == TrailerType.Unknown)
+        {
+            model.Type = TrailerType.Van;
+        }
+
         return base.OnModelCreated(model, cancellationToken);
     }
 }

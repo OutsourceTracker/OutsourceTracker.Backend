@@ -140,22 +140,19 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
     {
         Logger.LogDebug("Executing CREATE for {ModelName}", ModelName);
         model ??= InstantiateModel();
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        Guid id = Guid.CreateVersion7(now);
+        _setModelId(model, id);
+        _setModelCreateOn(model, now);
         await NormalizeModel(model, cancellationToken);
-
-        PropertyInfo? idProp = model.GetType().GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
-
-        if (idProp != null)
-        {
-            idProp.SetValue(model, GenerateNewId());
-        }
-
-
         await SelectedTable.AddAsync(model, cancellationToken);
         int affected = await OnWriteDatabase(model, cancellationToken);
 
         if (affected > 0)
         {
             Logger.LogInformation("Created new {ModelName} with ID {ModelId}. Affected rows: {AffectedRows}", ModelName, model.Id, affected);
+            await OnModelCreated(model, cancellationToken);
             return model;
         }
 
@@ -163,15 +160,9 @@ internal abstract class DynamicDataService<TModel> : IModelCreateService<TModel>
         throw new InvalidOperationException($"Failed to create {ModelName}: No rows affected.");
     }
 
-    protected TModel InstantiateModel(TModel? model = null, CancellationToken cancellationToken = default)
+    protected virtual TModel InstantiateModel(TModel? model = null, CancellationToken cancellationToken = default)
     {
         model ??= ActivatorUtilities.CreateInstance<TModel>(Services);
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        Guid id = Guid.CreateVersion7(now);
-        
-        _setModelId(model, id);
-        _setModelCreateOn(model, now);
-        OnModelCreated(model, cancellationToken);
         return model;
     }
 
