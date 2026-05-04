@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OutsourceTracker.Authentication;
+using OutsourceTracker.BusinessUnit.Accounts;
+using OutsourceTracker.BusinessUnit.Divisions;
 using OutsourceTracker.Data;
+using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Services;
 using OutsourceTracker.Services.ModelService;
 using SendGrid.Extensions.DependencyInjection;
@@ -87,7 +90,9 @@ public class Program
         builder.Services.AddHostedService<AppDataContextInitializer>();
 
         builder.Services.AddScoped<JwtTokenService>();
-        builder.Services.AddScoped<TrailerDataService>();
+        builder.Services.AddScoped<OrganizationalUnitService>();
+        builder.Services.AddScoped<AccountService>();
+        builder.Services.AddScoped<TrailerService>();
         builder.Services.AddScoped<ZoneDataService>();
 
         var app = builder.Build();
