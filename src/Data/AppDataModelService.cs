@@ -64,6 +64,7 @@ namespace OutsourceTracker.Data
                 }
             }
 
+            await OnModelCreated(model, cancellationToken);
             using IModelResultBuilder r = ModelResult.Builder();
             Logger.LogDebug("Beginning transaction for creating {ModelName}.", ModelName);
             IDbContextTransaction transaction = await DataContext.Database.BeginTransactionAsync(cancellationToken);
@@ -205,11 +206,69 @@ namespace OutsourceTracker.Data
             return r.Build();
         }
 
+        /// <summary>
+        /// Searches for models using dynamic parameters provided as an anonymous object or DTO.
+        /// </summary>
+        /// <typeparam name="T">Type of the search parameters object.</typeparam>
+        /// <param name="searchParameters">Optional search criteria. Supports exact match, range filters (e.g. CreatedAfter/CreatedBefore), and StartsWith for strings/Guids.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>
+        /// A <see cref="ModelResult"/> containing an <see cref="IAsyncEnumerable{TModel}"/> in <see cref="ModelResult.Data"/> on success.
+        /// </returns>
+        /// <remarks>
+        /// <para>
+        /// Property name conventions supported:
+        /// <list type="bullet">
+        ///   <item><c>PropertyName</c> → exact match (==)</item>
+        ///   <item><c>PropertyNameAfter</c> / <c>PropertyNameBefore</c> → range filters for dates/numerics</item>
+        ///   <item>String or Guid properties → <c>StartsWith</c> / <c>Contains</c> when value is string</item>
+        /// </list>
+        /// </para>
+        /// <para>
+        /// Uses reflection + EF Core expression building for flexibility without needing per-model query methods.
+        /// </para>
+        /// </remarks>
         public async Task<ModelResult> Search<T>(T? searchParameters = default, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            cancellationToken.ThrowIfCancellationRequested();
+            IModelResultBuilder r = ModelResult.Builder();
+            IQueryable<TModel> query = SelectedTable.AsNoTracking();
+
+            if (searchParameters != null)
+            {
+                Logger.LogDebug("Applying dynamic search parameters for {ModelName}.", ModelName);
+
+                try
+                {
+                    query = query.ApplySearchParameters(searchParameters, Logger);
+                    Logger.LogDebug("Search parameters applied successfully for {ModelName}.", ModelName);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to apply search parameters for {ModelName}.", ModelName);
+                    return r.AddError("SearchParameterError", ex.Message)
+                            .Build();
+                }
+            }
+            else
+            {
+                Logger.LogDebug("No search parameters provided for {ModelName} search. Returning all records.", ModelName);
+            }
+
+            IAsyncEnumerable<TModel> models = query.AsAsyncEnumerable();
+            Logger.LogDebug("Search completed for {ModelName}.", ModelName);
+            return r.WithResult(models)
+                    .WithSuccess()
+                    .Build();
         }
 
-        
+        #region Overrides
+
+        protected virtual ValueTask OnModelCreated(TModel model, CancellationToken cancellationToken = default)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        #endregion
     }
 }
