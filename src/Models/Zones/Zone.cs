@@ -19,4 +19,6 @@ public class Zone : IZone<Guid>
     public ICollection<Vector2> DockPoints { get; set; }
 
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool Equals(Guid other) => Id.Equals(other);
 }
