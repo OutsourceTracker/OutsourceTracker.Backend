@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
-using OutsourceTracker.Services.ModelService;
+using OutsourceTracker.Services.DataModels;
 using System.Security.Claims;
 
 namespace OutsourceTracker.Controllers;
@@ -13,23 +13,34 @@ namespace OutsourceTracker.Controllers;
 [Route("[controller]")]
 public class TrailersController : ControllerBase
 {
-    private TrailerDataService Service { get; }
+    private TrailerService Service { get; }
 
     public TrailersController(IServiceProvider service)
     {
-        Service = service.GetRequiredService<TrailerDataService>();
+        Service = service.GetRequiredService<TrailerService>();
     }
 
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TrailerModel[]))]
-    public IAsyncEnumerable<TrailerModel> Get()
+    public async IAsyncEnumerable<TrailerModel> Get()
     {
         var parameters = Request.Query.ToDictionary(
             q => q.Key,
             q => q.Value.Count > 1 ? (object)q.Value.ToArray() : q.Value[0]
         );
-        var search = Service.Search(parameters, HttpContext.RequestAborted);
-        return search;
+        ModelResult result = await Service.Search(parameters, HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            yield break;
+        }
+
+        IAsyncEnumerable<TrailerModel> list = result.Data is IAsyncEnumerable<TrailerModel> trailers ? trailers : AsyncEnumerable.Empty<TrailerModel>();
+
+        await foreach (var trailer in list.WithCancellation(HttpContext.RequestAborted))
+        {
+            yield return trailer;
+        }
     }
 
     [HttpGet("{id}")]
@@ -37,14 +48,25 @@ public class TrailersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id)
     {
-        TrailerModel? model = await Service.Get(id, HttpContext.RequestAborted);
+        ModelResult result = await Service.Get(id, HttpContext.RequestAborted);
 
-        if (model == null)
+        if (result.Errors != null)
         {
-            return NotFound();
+            foreach (var k in result.Errors)
+            {
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
+            }
         }
 
-        return Ok(model);
+        if (result.Success)
+        {
+            TrailerModel model = (TrailerModel)result.Data!;
+            return Ok(model);
+        }
+        else
+        {
+            return Conflict(ModelState);
+        }
     }
 
     [HttpPost]
@@ -57,21 +79,25 @@ public class TrailersController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
+        ModelResult result = await Service.Create(model, HttpContext.RequestAborted);
+
+        if (result.Errors != null)
         {
-            TrailerDbModel trailer = new();
-            
-            if (!trailer.ApplyObjectToModel(model))
-            { 
+            foreach (var k in result.Errors)
+            {
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
             }
-
-            TrailerModel? trailer = await Service.Create(model, HttpContext.RequestAborted);
-
-            return trailer == null ? BadRequest("Failed to create the trailer.") : CreatedAtAction(nameof(Get), new { trailer.Id }, trailer);
         }
-        catch (InvalidOperationException ioe)
+
+        if (result.Success)
         {
-            return Problem(ioe.Message, statusCode: StatusCodes.Status500InternalServerError, title: ioe.GetType().Name, type: ioe.GetType().FullName);
+            TrailerModel created = (TrailerModel)result.Data!;
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+
+        }
+        else
+        {
+            return BadRequest(ModelState);
         }
     }
 
@@ -80,19 +106,22 @@ public class TrailersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        try
+        ModelResult result = await Service.Delete(id, HttpContext.RequestAborted);
+
+        if (result.Errors != null)
         {
-            int response = await Service.Delete(id, HttpContext.RequestAborted);
-            return Ok(response);
+            foreach (var k in result.Errors)
+            {
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
+            }
         }
-        catch (KeyNotFoundException)
+
+        if (!result.Success)
         {
             return NotFound();
         }
-        catch (ArgumentNullException)
-        {
-            return BadRequest();
-        }
+
+        return NoContent();
     }
 
     [HttpPut("{id}")]
@@ -106,25 +135,23 @@ public class TrailersController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
-        {
-            TrailerModel? model = await Service.Update(id, request, HttpContext.RequestAborted);
+        ModelResult result = await Service.Update(id, request, HttpContext.RequestAborted);
 
-            if (model == null)
+        if (result.Errors != null)
+        {
+            foreach (var k in result.Errors)
             {
-                return NotFound();
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
             }
+        }
 
-            return AcceptedAtAction(nameof(Get), new { id }, model);
-        }
-        catch (ArgumentNullException)
+        if (!result.Success)
         {
-            return BadRequest(nameof(request));
+            return BadRequest(ModelState);
         }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(id);
-        }
+
+        TrailerModel updated = (TrailerModel)result.Data!;
+        return Ok(updated);
     }
 
     [HttpPut("{id}/[action]")]
@@ -148,19 +175,22 @@ public class TrailersController : ControllerBase
             LocatedDate = DateTimeOffset.UtcNow
         };
 
-        try
+        ModelResult result = await Service.Update(id, update, HttpContext.RequestAborted);
+
+        if (result.Errors != null)
         {
-            TrailerModel? model = await Service.Update(id, update, HttpContext.RequestAborted);
-            return AcceptedAtAction(nameof(Get), new { id }, model);
+            foreach (var k in result.Errors)
+            {
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
+            }
         }
-        catch (ArgumentNullException)
+
+        if (!result.Success)
         {
-            return BadRequest();
+            return BadRequest(ModelState);
         }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(id);
-        }
+
+        return AcceptedAtAction(nameof(Get), new { id }, result.Data);
     }
 
     [AllowAnonymous]
@@ -173,9 +203,15 @@ public class TrailersController : ControllerBase
             yield break;
         }
 
-        var trailerQuery = Service.Search(null, HttpContext.RequestAborted);
+        ModelResult result = await Service.Search((object?)null, HttpContext.RequestAborted);
 
-        var e = trailerQuery.GetAsyncEnumerator(HttpContext.RequestAborted);
+        if (!result.Success)
+        {
+            yield break;
+        }
+
+        IAsyncEnumerable<TrailerModel> list = result.Data is IAsyncEnumerable<TrailerModel> trailers ? trailers : AsyncEnumerable.Empty<TrailerModel>();
+        IAsyncEnumerator<TrailerModel> e = list.GetAsyncEnumerator(HttpContext.RequestAborted);
         
         while (await e.MoveNextAsync())
         {
@@ -193,7 +229,7 @@ public class TrailersController : ControllerBase
                 YardName = e.Current.ZoneName,
                 AttachedTo = string.Empty,
                 Location = mapsLink,
-                LocatedBy = e.Current.LocatedBy,
+                LocatedBy = e.Current.LocatedByName,
                 LocatedDate = e.Current.LocatedDate.HasValue ? e.Current.LocatedDate.Value.ToLocalTime().ToString("MM-dd-yyyy HH:mm:ss") : null
             };
         }
