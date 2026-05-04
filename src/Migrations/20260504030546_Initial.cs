@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OutsourceTracker.Migrations
 {
     /// <inheritdoc />
-    public partial class Identity : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -53,6 +53,40 @@ namespace OutsourceTracker.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BusinessUnits",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ShortCode = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    Description = table.Column<string>(type: "TEXT", nullable: false),
+                    TotalAccounts = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BusinessUnits", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Zones",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ShortCode = table.Column<string>(type: "TEXT", nullable: false),
+                    FullName = table.Column<string>(type: "TEXT", nullable: false),
+                    Boundry = table.Column<byte[]>(type: "BLOB", nullable: false),
+                    EntryPoints = table.Column<string>(type: "TEXT", nullable: false),
+                    ExitPoints = table.Column<string>(type: "TEXT", nullable: false),
+                    DockPoints = table.Column<string>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Zones", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -161,6 +195,70 @@ namespace OutsourceTracker.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "BusinessAccounts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ShortCode = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    OUID = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BusinessAccounts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BusinessAccounts_BusinessUnits_OUID",
+                        column: x => x.OUID,
+                        principalTable: "BusinessUnits",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Trailers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Prefix = table.Column<string>(type: "TEXT", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", nullable: false),
+                    FullName = table.Column<string>(type: "TEXT", nullable: false),
+                    Type = table.Column<int>(type: "INTEGER", nullable: false),
+                    State = table.Column<int>(type: "INTEGER", nullable: false),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    AccountId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    LocatedById = table.Column<Guid>(type: "TEXT", nullable: true),
+                    LocatedByName = table.Column<string>(type: "TEXT", nullable: true),
+                    LocatedDate = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    Location = table.Column<byte[]>(type: "BLOB", nullable: true),
+                    LocationAccuracy = table.Column<double>(type: "REAL", nullable: true),
+                    ZoneId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    ZoneName = table.Column<string>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Trailers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Trailers_AspNetUsers_LocatedById",
+                        column: x => x.LocatedById,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Trailers_BusinessAccounts_AccountId",
+                        column: x => x.AccountId,
+                        principalTable: "BusinessAccounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Trailers_Zones_ZoneId",
+                        column: x => x.ZoneId,
+                        principalTable: "Zones",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -197,6 +295,64 @@ namespace OutsourceTracker.Migrations
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BusinessAccounts_OUID",
+                table: "BusinessAccounts",
+                column: "OUID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrganizationalAccount_Name",
+                table: "BusinessAccounts",
+                column: "Name");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrganizationalAccount_ShortCode_Unique",
+                table: "BusinessAccounts",
+                column: "ShortCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrganizationalUnit_Name",
+                table: "BusinessUnits",
+                column: "Name");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrganizationalUnit_ShortCode_Unique",
+                table: "BusinessUnits",
+                column: "ShortCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailer_FullName_Unique",
+                table: "Trailers",
+                column: "FullName",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailer_Name",
+                table: "Trailers",
+                column: "Name");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailer_Prefix",
+                table: "Trailers",
+                column: "Prefix");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailers_AccountId",
+                table: "Trailers",
+                column: "AccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailers_LocatedById",
+                table: "Trailers",
+                column: "LocatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Trailers_ZoneId",
+                table: "Trailers",
+                column: "ZoneId");
         }
 
         /// <inheritdoc />
@@ -218,10 +374,22 @@ namespace OutsourceTracker.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "Trailers");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "BusinessAccounts");
+
+            migrationBuilder.DropTable(
+                name: "Zones");
+
+            migrationBuilder.DropTable(
+                name: "BusinessUnits");
         }
     }
 }

@@ -11,8 +11,8 @@ using OutsourceTracker.Data;
 namespace OutsourceTracker.Migrations
 {
     [DbContext(typeof(AppDataContext))]
-    [Migration("20260412231104_NewTrailerModels")]
-    partial class NewTrailerModels
+    [Migration("20260504030546_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -231,6 +231,72 @@ namespace OutsourceTracker.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OUID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShortCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OUID");
+
+                    b.HasIndex(new[] { "Name" }, "IX_OrganizationalAccount_Name");
+
+                    b.HasIndex(new[] { "ShortCode" }, "IX_OrganizationalAccount_ShortCode_Unique")
+                        .IsUnique();
+
+                    b.ToTable("BusinessAccounts");
+                });
+
+            modelBuilder.Entity("OutsourceTracker.BusinessUnit.Divisions.OrganizationalUnitDbModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ShortCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalAccounts")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "Name" }, "IX_OrganizationalUnit_Name");
+
+                    b.HasIndex(new[] { "ShortCode" }, "IX_OrganizationalUnit_ShortCode_Unique")
+                        .IsUnique();
+
+                    b.ToTable("BusinessUnits");
+                });
+
             modelBuilder.Entity("OutsourceTracker.Equipment.Trailers.TrailerDbModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -247,7 +313,10 @@ namespace OutsourceTracker.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("LocatedBy")
+                    b.Property<Guid?>("LocatedById")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LocatedByName")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("LocatedDate")
@@ -283,6 +352,8 @@ namespace OutsourceTracker.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("LocatedById");
+
                     b.HasIndex("ZoneId");
 
                     b.HasIndex(new[] { "FullName" }, "IX_Trailer_FullName_Unique")
@@ -293,28 +364,6 @@ namespace OutsourceTracker.Migrations
                     b.HasIndex(new[] { "Prefix" }, "IX_Trailer_Prefix");
 
                     b.ToTable("Trailers");
-                });
-
-            modelBuilder.Entity("OutsourceTracker.Models.Accounts.Account", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ShortName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BusinessAccounts");
                 });
 
             modelBuilder.Entity("OutsourceTracker.Models.Zones.Zone", b =>
@@ -406,11 +455,27 @@ namespace OutsourceTracker.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", b =>
+                {
+                    b.HasOne("OutsourceTracker.BusinessUnit.Divisions.OrganizationalUnitDbModel", "OrganizationalUnit")
+                        .WithMany("Accounts")
+                        .HasForeignKey("OUID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrganizationalUnit");
+                });
+
             modelBuilder.Entity("OutsourceTracker.Equipment.Trailers.TrailerDbModel", b =>
                 {
-                    b.HasOne("OutsourceTracker.Models.Accounts.Account", "Account")
+                    b.HasOne("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", "Account")
                         .WithMany()
                         .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("OutsourceTracker.Authentication.ApplicationUser", "LocatedBy")
+                        .WithMany()
+                        .HasForeignKey("LocatedById")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("OutsourceTracker.Models.Zones.Zone", "Zone")
@@ -420,7 +485,14 @@ namespace OutsourceTracker.Migrations
 
                     b.Navigation("Account");
 
+                    b.Navigation("LocatedBy");
+
                     b.Navigation("Zone");
+                });
+
+            modelBuilder.Entity("OutsourceTracker.BusinessUnit.Divisions.OrganizationalUnitDbModel", b =>
+                {
+                    b.Navigation("Accounts");
                 });
 #pragma warning restore 612, 618
         }
