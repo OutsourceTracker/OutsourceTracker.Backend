@@ -92,7 +92,7 @@ public class TrailersController : ControllerBase
         if (result.Success)
         {
             TrailerModel created = (TrailerModel)result.Data!;
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, new { id = created.Id });
 
         }
         else
