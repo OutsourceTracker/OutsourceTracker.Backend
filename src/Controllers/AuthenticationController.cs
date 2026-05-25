@@ -26,7 +26,7 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("[action]")]
-    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    public async Task<IActionResult> Register([FromBody] RegisterModel dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -48,7 +48,7 @@ public class AuthenticationController : ControllerBase
         {
             foreach (var error in createResult.Errors)
             {
-                ModelState.AddModelError(string.Empty, error.Description);
+                ModelState.AddModelError(error.Code, error.Description);
             }
 
             return BadRequest(ModelState);
@@ -98,7 +98,7 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("[action]")]
-    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginModel dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -113,8 +113,8 @@ public class AuthenticationController : ControllerBase
         if (!result.Succeeded)
             return Unauthorized("Invalid email or password");
 
-        var token = await _token.GenerateTokenAsync(user);
-        return Ok(new { token });
+        var token = await _token.GenerateTokenAsync(user, dto.RememberMe);
+        return Ok(token);
     }
 
     [HttpGet("[action]")]
@@ -135,8 +135,4 @@ public class AuthenticationController : ControllerBase
             Roles = User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToArray()
         });
     }
-
-    public record LoginDto(string Email, string Password);
-
-    public record RegisterDto(string Email, string Password, string FirstName, string LastName, string AlphaCode, string WorkdayId);
 }

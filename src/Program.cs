@@ -41,8 +41,8 @@ public class Program
         builder.Services.AddScoped<EmailService>();
 
         builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<AppDataContext>()
-            .AddDefaultTokenProviders();
+        .AddEntityFrameworkStores<AppDataContext>()
+        .AddDefaultTokenProviders();
 
         builder.Services.AddAuthentication(options =>
         {

@@ -14,6 +14,7 @@ internal class TrailerService : AppDataModelService<TrailerDbModel>
         model.Name = model.Name.Trim().ToUpperInvariant();
         model.FullName = $"{model.Prefix} {model.Name}";
         model.CreatedOn = DateTimeOffset.UtcNow;
+        model.Id = Guid.CreateVersion7(model.CreatedOn);
         return base.OnModelCreated(model, cancellationToken);
     }
 }

@@ -4,6 +4,7 @@ using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Services.DataModels;
+using OutsourceTracker.Tools;
 using System.Security.Claims;
 
 namespace OutsourceTracker.Controllers;
@@ -92,7 +93,7 @@ public class TrailersController : ControllerBase
         if (result.Success)
         {
             TrailerModel created = (TrailerModel)result.Data!;
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, new { id = created.Id });
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, result.Data);
 
         }
         else
@@ -161,19 +162,18 @@ public class TrailersController : ControllerBase
     {
         Guid userId = Guid.Empty;
 
-        if (!Guid.TryParse(User.FindFirstValue("sub"), out userId))
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId))
         {
             userId = Guid.Empty;
         }
 
-        var update = new
-        {
-            Location = coordinates,
-            LocationAccuracy = acc.GetValueOrDefault(),
-            LocatedBy = User.FindFirstValue("name") ?? "Unknown User",
-            LocatedById = userId,
-            LocatedDate = DateTimeOffset.UtcNow
-        };
+        var update = ModelUpdater<TrailerDbModel>.Update(ControllerContext.HttpContext.RequestServices)
+            .Set(x => x.Location, coordinates)
+            .Set(x => x.LocationAccuracy, acc.GetValueOrDefault())
+            .Set(x => x.LocatedByName, User.FindFirstValue("name") ?? "Unknown User")
+            .Set(x => x.LocatedById, userId)
+            .Set(x => x.LocatedDate, DateTimeOffset.UtcNow)
+            .Build();
 
         ModelResult result = await Service.Update(id, update, HttpContext.RequestAborted);
 
@@ -237,7 +237,7 @@ public class TrailersController : ControllerBase
 
     #region Controller Specific Classes
 
-    public record TrailerCreateModel(string Prefix, string Name, TrailerType Type = TrailerType.Van);
+    public record TrailerCreateModel(string Prefix, string Name, Guid? AccountId, TrailerType Type = TrailerType.Van);
 
     #endregion
 }

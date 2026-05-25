@@ -51,6 +51,9 @@ public class AccountController : BaseApiController
             ShortCode = data.ShortCode,
             Name = data.Name,
             OUID = data.OUID,
+            CostCenter = data.CostCenter,
+            Address = data.Address,
+            GroupEmail = data.GroupEmail,
             CreatedOn = data.CreatedOn
         });
     }
@@ -93,6 +96,9 @@ public class AccountController : BaseApiController
                 ShortCode = item.ShortCode,
                 Name = item.Name,
                 OUID = item.OUID,
+                CostCenter = item.CostCenter,
+                Address = item.Address,
+                GroupEmail = item.GroupEmail,
                 CreatedOn = item.CreatedOn
             };
         }
@@ -203,5 +209,5 @@ public class AccountController : BaseApiController
         }
     }
 
-    public record AccountCreateModel(string ShortCode, string Name, Guid OUID);
+    public record AccountCreateModel(string ShortCode, string Name, string? CostCenter, string? GroupEmail, string? Address, Guid OUID);
 }

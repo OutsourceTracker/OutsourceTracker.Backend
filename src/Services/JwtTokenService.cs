@@ -18,7 +18,7 @@ public class JwtTokenService
         _users = users;
     }
 
-    public async Task<string> GenerateTokenAsync(ApplicationUser user)
+    public async Task<string> GenerateTokenAsync(ApplicationUser user, bool rememberMe = false)
     {
         var claims = new List<Claim>
         {
@@ -37,11 +37,22 @@ public class JwtTokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        DateTime expireTime = DateTime.UtcNow;
+
+        if (rememberMe)
+        {
+            expireTime = expireTime.AddDays(30);
+        }
+        else
+        {
+            expireTime = expireTime.AddMinutes(Convert.ToDouble(_config["ExpireInMinutes"]));
+        }
+
         var token = new JwtSecurityToken(
             issuer: _config["Issuer"],
             audience: _config["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(_config["ExpireInMinutes"])),
+            expires: expireTime,
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
