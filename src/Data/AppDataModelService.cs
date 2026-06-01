@@ -41,7 +41,7 @@ namespace OutsourceTracker.Data
         }
 
 
-        public async Task<ModelResult> Create<T>(T? modelParameters = default, CancellationToken cancellationToken = default)
+        public virtual async Task<ModelResult> Create<T>(T? modelParameters = default, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             TModel? model = null;
@@ -97,7 +97,7 @@ namespace OutsourceTracker.Data
             return r.Build();
         }
 
-        public async Task<ModelResult> Delete(Guid modelId, CancellationToken cancellationToken = default)
+        public virtual async Task<ModelResult> Delete(Guid modelId, CancellationToken cancellationToken = default)
         {
             ModelResult result = await Get(modelId, cancellationToken);
 
@@ -155,7 +155,7 @@ namespace OutsourceTracker.Data
                     .Build();
         }
 
-        public async Task<ModelResult> Update<T>(Guid modelId, T modelParameters, CancellationToken cancellationToken = default)
+        public virtual async Task<ModelResult> Update<T>(Guid modelId, T modelParameters, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(modelParameters, nameof(modelParameters));
             ModelResult result = await Get(modelId, cancellationToken);

@@ -27,6 +27,11 @@ public class JwtTokenService
             new Claim(JwtRegisteredClaimNames.Name, user.FullName ?? user.UserName!),
             new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName),
             new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.FullName ?? user.UserName!),
+            new Claim(ClaimTypes.Email, user.Email!),
+            new Claim(ClaimTypes.GivenName, user.FirstName),
+            new Claim(ClaimTypes.Surname, user.LastName),
             new Claim("workday_id", user.WorkdayId),
             new Claim("alphacode", user.AlphaCode)
         };

@@ -4,7 +4,9 @@ using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Services.DataModels;
+using OutsourceTracker.Services.ModelService;
 using OutsourceTracker.Tools;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace OutsourceTracker.Controllers;
@@ -15,10 +17,12 @@ namespace OutsourceTracker.Controllers;
 public class TrailersController : ControllerBase
 {
     private TrailerService Service { get; }
+    private readonly ILogger<TrailersController> _logger;
 
-    public TrailersController(IServiceProvider service)
+    public TrailersController(IServiceProvider service, ILogger<TrailersController> logger)
     {
         Service = service.GetRequiredService<TrailerService>();
+        _logger = logger;
     }
 
     [HttpGet]
@@ -73,7 +77,7 @@ public class TrailersController : ControllerBase
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(TrailerModel))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Post([FromBody] TrailerCreateModel model)
+    public async Task<IActionResult> Post([FromBody] TrailerCreateRequest model)
     {
         if (!ModelState.IsValid || model == null)
         {
@@ -100,6 +104,84 @@ public class TrailersController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+    }
+
+    [HttpPost("bulk")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BulkCreateResult<TrailerModel>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkPost([FromBody] IEnumerable<TrailerCreateRequest> models)
+    {
+        if (models == null)
+        {
+            return BadRequest("No trailer data provided.");
+        }
+
+        ModelResult result = await Service.BulkCreate(models, HttpContext.RequestAborted);
+
+        if (result.Errors != null)
+        {
+            foreach (var k in result.Errors)
+            {
+                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
+            }
+        }
+
+        if (result.Data is BulkCreateResult<TrailerModel> bulkResult)
+        {
+            // Return 200 even on partial success so the client can see what succeeded/failed.
+            return Ok(bulkResult);
+        }
+
+        if (!result.Success)
+        {
+            return BadRequest(ModelState);
+        }
+
+        return Ok(new BulkCreateResult<TrailerModel>());
+    }
+
+    [HttpPost("bulk-delete")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BulkDeleteResult))]
+    public async Task<IActionResult> BulkDelete([FromBody] Guid[] ids)
+    {
+        if (ids == null || ids.Length == 0)
+        {
+            return BadRequest("No trailer IDs provided.");
+        }
+
+        ModelResult result = await Service.BulkDelete(ids, HttpContext.RequestAborted);
+
+        if (result.Data is BulkDeleteResult deleteResult)
+        {
+            return Ok(deleteResult);
+        }
+
+        return result.Success ? Ok(new BulkDeleteResult()) : BadRequest(ModelState);
+    }
+
+    [HttpPost("bulk-update")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BulkUpdateResult<TrailerModel>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkUpdate([FromBody] BulkTrailerUpdateRequest request)
+    {
+        if (request?.Ids == null || request.Ids.Length == 0)
+        {
+            return BadRequest("No trailer IDs provided.");
+        }
+
+        if (request.Changes == null || request.Changes.Count == 0)
+        {
+            return BadRequest("No changes provided.");
+        }
+
+        ModelResult result = await Service.BulkUpdate(request.Ids, request.Changes, HttpContext.RequestAborted);
+
+        if (result.Data is BulkUpdateResult<TrailerModel> updateResult)
+        {
+            return Ok(updateResult);
+        }
+
+        return result.Success ? Ok(new BulkUpdateResult<TrailerModel>()) : BadRequest(ModelState);
     }
 
     [HttpDelete("{id}")]
@@ -155,11 +237,26 @@ public class TrailersController : ControllerBase
         return Ok(updated);
     }
 
-    [HttpPut("{id}/[action]")]
+    [HttpPut("[action]")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(DBNull))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(DBNull))]
-    public async Task<IActionResult> Spot(Guid id, [FromBody] Vector2 coordinates, [FromQuery] double? acc = 0.00)
+    public async Task<IActionResult> Spot(EquipmentLocationUpdateRequest<Guid> request)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (request.Ids == null || request.Ids.Length == 0)
+        {
+            return BadRequest("No IDs provided.");
+        }
+
+        if (request.Location == Vector2.Zero)
+        {
+            return BadRequest("Invalid location provided.");
+        }
+
         Guid userId = Guid.Empty;
 
         if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId))
@@ -168,29 +265,45 @@ public class TrailersController : ControllerBase
         }
 
         var update = ModelUpdater<TrailerDbModel>.Update(ControllerContext.HttpContext.RequestServices)
-            .Set(x => x.Location, coordinates)
-            .Set(x => x.LocationAccuracy, acc.GetValueOrDefault())
-            .Set(x => x.LocatedByName, User.FindFirstValue("name") ?? "Unknown User")
+            .Set(x => x.Location, request.Location)
+            .Set(x => x.LocationAccuracy, request.Accuracy)
+            .Set(x => x.LocatedByName, User.Identity?.Name ?? "Unknown User")
             .Set(x => x.LocatedById, userId)
             .Set(x => x.LocatedDate, DateTimeOffset.UtcNow)
             .Build();
 
-        ModelResult result = await Service.Update(id, update, HttpContext.RequestAborted);
 
-        if (result.Errors != null)
+        List<Guid> success = [];
+        Dictionary<Guid, string> failed = [];
+        for (int i = 0; i < request.Ids.Length; i++)
         {
-            foreach (var k in result.Errors)
+            ModelResult result = await Service.Update(request.Ids[i], update, HttpContext.RequestAborted);
+
+            if (result.Success)
             {
-                ModelState.AddModelError(k.Key, k.Value.ToString() ?? string.Empty);
+                success.Add(request.Ids[i]);
+
+            }
+            else
+            {
+                if (result.Errors != null)
+                {
+                    string errorMessage = string.Join("; ", result.Errors.Select(e => $"{e.Key}: {e.Value}"));
+                    failed.Add(request.Ids[i], errorMessage);
+                }
+                else
+                {
+                    failed.Add(request.Ids[i], "Unknown error");
+                }
             }
         }
 
-        if (!result.Success)
+        return Ok(new EquipmentLocationUpdateResponse<Guid>
         {
-            return BadRequest(ModelState);
-        }
-
-        return AcceptedAtAction(nameof(Get), new { id }, result.Data);
+            Success = failed.Count == 0,
+            SuccessfulTrailers = success.ToArray(),
+            FailedTrailers = failed
+        });
     }
 
     [AllowAnonymous]
@@ -234,10 +347,4 @@ public class TrailersController : ControllerBase
             };
         }
     }
-
-    #region Controller Specific Classes
-
-    public record TrailerCreateModel(string Prefix, string Name, Guid? AccountId, TrailerType Type = TrailerType.Van);
-
-    #endregion
 }

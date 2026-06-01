@@ -18,6 +18,11 @@ public class Zone : IZone<Guid>
 
     public ICollection<Vector2> DockPoints { get; set; }
 
+    /// <summary>
+    /// Preferred trailer spotting / parking locations inside this zone.
+    /// </summary>
+    public ICollection<Vector2> TrailerPools { get; set; }
+
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
 
     public bool Equals(Guid other) => Id.Equals(other);

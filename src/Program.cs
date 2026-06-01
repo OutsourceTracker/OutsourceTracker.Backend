@@ -41,8 +41,8 @@ public class Program
         builder.Services.AddScoped<EmailService>();
 
         builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
-        .AddEntityFrameworkStores<AppDataContext>()
-        .AddDefaultTokenProviders();
+            .AddEntityFrameworkStores<AppDataContext>()
+            .AddDefaultTokenProviders();
 
         builder.Services.AddAuthentication(options =>
         {
@@ -94,7 +94,7 @@ public class Program
         builder.Services.AddScoped<AccountService>();
         builder.Services.AddScoped<TrailerService>();
         builder.Services.AddScoped<ZoneDataService>();
-
+        builder.Services.AddScoped<PasskeyService>();
         var app = builder.Build();
         app.UseCors();
 
@@ -112,3 +112,4 @@ public class Program
         app.Run();
     }
 }
+

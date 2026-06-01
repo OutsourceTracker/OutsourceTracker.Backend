@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OutsourceTracker.Data;
 
@@ -10,9 +11,11 @@ using OutsourceTracker.Data;
 namespace OutsourceTracker.Migrations
 {
     [DbContext(typeof(AppDataContext))]
-    partial class AppDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260601075141_AddPasskeyMetadata")]
+    partial class AddPasskeyMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -242,32 +245,14 @@ namespace OutsourceTracker.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LastUsedOn")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Name")
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PublicKey")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<uint>("SignCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Transports")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CredentialId")
                         .IsUnique();
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("PasskeyMetadata");
                 });
@@ -513,17 +498,6 @@ namespace OutsourceTracker.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("OutsourceTracker.Authentication.PasskeyMetadata", b =>
-                {
-                    b.HasOne("OutsourceTracker.Authentication.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", b =>

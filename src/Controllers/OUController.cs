@@ -205,5 +205,17 @@ public class OUController : BaseApiController
         }
     }
 
+    /// <summary>
+    /// Recalculates the TotalAccounts denormalized count for all organizational units.
+    /// Useful for correcting drift after bulk operations or data imports.
+    /// </summary>
+    [HttpPost("recalculate-counts")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RecalculateCounts()
+    {
+        int updated = await ((OrganizationalUnitService)OU).RecalculateAllAccountCountsAsync(HttpContext.RequestAborted);
+        return Ok(new { Updated = updated, Message = $"Recalculated counts for {updated} organizational unit(s)." });
+    }
+
     public record OUCreateModel(string ShortCode, string Name, string Description);
 }

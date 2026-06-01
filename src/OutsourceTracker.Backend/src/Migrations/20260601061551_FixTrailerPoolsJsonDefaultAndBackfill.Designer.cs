@@ -2,17 +2,20 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OutsourceTracker.Data;
 
 #nullable disable
 
-namespace OutsourceTracker.Migrations
+namespace OutsourceTracker.OutsourceTracker.Backend.src.Migrations
 {
     [DbContext(typeof(AppDataContext))]
-    partial class AppDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260601061551_FixTrailerPoolsJsonDefaultAndBackfill")]
+    partial class FixTrailerPoolsJsonDefaultAndBackfill
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -226,50 +229,6 @@ namespace OutsourceTracker.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("OutsourceTracker.Authentication.PasskeyMetadata", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CredentialId")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("LastUsedOn")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PublicKey")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<uint>("SignCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Transports")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CredentialId")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PasskeyMetadata");
                 });
 
             modelBuilder.Entity("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", b =>
@@ -513,17 +472,6 @@ namespace OutsourceTracker.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("OutsourceTracker.Authentication.PasskeyMetadata", b =>
-                {
-                    b.HasOne("OutsourceTracker.Authentication.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OutsourceTracker.BusinessUnit.Accounts.AccountDbModel", b =>

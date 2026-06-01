@@ -22,12 +22,33 @@ public class AppDataContext : IdentityDbContext<ApplicationUser, IdentityRole<Gu
 
     public DbSet<Zone> Zones => Set<Zone>();
 
+    // We do NOT expose Identity's UserPasskeys DbSet directly here.
+    // This avoids the "not included in the model" error because .AddWebAuthn() is not registered.
+    // Instead, we store passkey credentials + friendly names in our own PasskeyMetadata table
+    // (this is the recommended approach when using JWT auth + full Fido2 control).
+
+    // Our table for passkeys (stores credential data + friendly name)
+    public DbSet<PasskeyMetadata> PasskeyMetadata => Set<PasskeyMetadata>();
+
     public AppDataContext(DbContextOptions<AppDataContext> options) : base(options)
     {
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder); // Important for Identity
+
+        modelBuilder.Entity<PasskeyMetadata>(ent =>
+        {
+            ent.HasIndex(x => x.CredentialId).IsUnique();
+            ent.HasIndex(x => x.UserId);
+
+            ent.HasOne(x => x.User)
+               .WithMany()
+               .HasForeignKey(x => x.UserId)
+               .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Zone>(ent =>
         {
             ent.Property(z => z.Boundry)
@@ -35,21 +56,31 @@ public class AppDataContext : IdentityDbContext<ApplicationUser, IdentityRole<Gu
 
             ent.Property(z => z.EntryPoints)
             .HasConversion(
-                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
-                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
-                !);
+                v => JsonSerializer.Serialize(v ?? new List<Vector2>(), new JsonSerializerOptions()),
+                v => string.IsNullOrWhiteSpace(v)
+                    ? new List<Vector2>()
+                    : JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions()) ?? new List<Vector2>());
 
             ent.Property(z => z.ExitPoints)
             .HasConversion(
-                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
-                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
-                !);
+                v => JsonSerializer.Serialize(v ?? new List<Vector2>(), new JsonSerializerOptions()),
+                v => string.IsNullOrWhiteSpace(v)
+                    ? new List<Vector2>()
+                    : JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions()) ?? new List<Vector2>());
 
             ent.Property(z => z.DockPoints)
             .HasConversion(
-                v => JsonSerializer.Serialize(v, new JsonSerializerOptions()),
-                v => JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions())
-                !);
+                v => JsonSerializer.Serialize(v ?? new List<Vector2>(), new JsonSerializerOptions()),
+                v => string.IsNullOrWhiteSpace(v)
+                    ? new List<Vector2>()
+                    : JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions()) ?? new List<Vector2>());
+
+            ent.Property(z => z.TrailerPools)
+            .HasConversion(
+                v => JsonSerializer.Serialize(v ?? new List<Vector2>(), new JsonSerializerOptions()),
+                v => string.IsNullOrWhiteSpace(v)
+                    ? new List<Vector2>()
+                    : JsonSerializer.Deserialize<ICollection<Vector2>>(v, new JsonSerializerOptions()) ?? new List<Vector2>());
         });
 
         ApplyConverters(modelBuilder);
