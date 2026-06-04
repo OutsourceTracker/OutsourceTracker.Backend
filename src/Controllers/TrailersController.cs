@@ -4,6 +4,7 @@ using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
 using OutsourceTracker.Models.Zones;
+using OutsourceTracker.Services;
 using OutsourceTracker.Services.DataModels;
 using OutsourceTracker.Services.ModelService;
 using OutsourceTracker.Tools;
@@ -19,12 +20,14 @@ public class TrailersController : ControllerBase
 {
     private TrailerService Service { get; }
     private ZoneDataService ZoneService { get; }
+    private EmailService EmailService { get; }
     private readonly ILogger<TrailersController> _logger;
 
     public TrailersController(IServiceProvider service, ILogger<TrailersController> logger)
     {
         Service = service.GetRequiredService<TrailerService>();
         ZoneService = service.GetRequiredService<ZoneDataService>();
+        EmailService = service.GetRequiredService<EmailService>();
         _logger = logger;
     }
 
@@ -380,6 +383,61 @@ public class TrailersController : ControllerBase
                 LocatedBy = e.Current.LocatedByName,
                 LocatedDate = e.Current.LocatedDate.HasValue ? e.Current.LocatedDate.Value.ToLocalTime().ToString("MM-dd-yyyy HH:mm:ss") : null
             };
+        }
+    }
+
+    public record ShareLocationsEmailRequest
+    {
+        public List<string> ToEmails { get; set; } = new();
+        public string? Subject { get; set; }
+        public List<TrailerLocationShare> Trailers { get; set; } = new();
+    }
+
+    public record TrailerLocationShare
+    {
+        public string Prefix { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? Zone { get; set; }
+        public string Coordinates { get; set; } = "";
+        public string LastSpottedBy { get; set; } = "";
+        public string LastSpottedTime { get; set; } = "";
+        public string GoogleMapsLink { get; set; } = "";
+    }
+
+    [HttpPost("share-locations-email")]
+    public async Task<IActionResult> ShareLocationsEmail([FromBody] ShareLocationsEmailRequest req)
+    {
+        if (req.ToEmails == null || req.ToEmails.Count == 0)
+            return BadRequest("No recipient emails provided.");
+
+        if (req.Trailers == null || req.Trailers.Count == 0)
+            return BadRequest("No trailers to share.");
+
+        var data = new
+        {
+            subject = req.Subject ?? $"Current Trailer Locations - {DateTime.UtcNow:MMM dd, yyyy}",
+            trailers = req.Trailers.Select(t => new
+            {
+                prefix = t.Prefix,
+                name = t.Name,
+                zone = t.Zone ?? "N/A",
+                coordinates = t.Coordinates,
+                lastSpottedBy = t.LastSpottedBy,
+                lastSpottedTime = t.LastSpottedTime,
+                googleMapsLink = t.GoogleMapsLink
+            }).ToList(),
+            generatedAt = DateTime.UtcNow.ToString("MMM dd, yyyy HH:mm")
+        };
+
+        try
+        {
+            await EmailService.SendTemplateEmailAsync(req.ToEmails, "d-632f544ac482450f9fb59e23d810e875", data);
+            return Ok(new { sentTo = req.ToEmails.Count });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send trailer locations email");
+            return StatusCode(500, "Failed to send email");
         }
     }
 }

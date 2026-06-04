@@ -56,4 +56,31 @@ public class EmailService
             throw new Exception($"Email sending failed: {response.StatusCode} - {body}");
         }
     }
+
+    public async Task SendTemplateEmailAsync(IEnumerable<string> toEmails, string templateId, object templateData)
+    {
+        if (toEmails == null || !toEmails.Any())
+            return;
+
+        var msg = new SendGridMessage()
+        {
+            From = new EmailAddress(_config["FromEmail"], _config["FromName"]),
+            TemplateId = templateId,
+            Personalizations = new List<Personalization>
+            {
+                new Personalization
+                {
+                    Tos = toEmails.Select(e => new EmailAddress(e)).ToList(),
+                    TemplateData = templateData
+                }
+            }
+        };
+        var response = await _client.SendEmailAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Body.ReadAsStringAsync();
+            throw new Exception($"Email sending failed: {response.StatusCode} - {body}");
+        }
+    }
 }
