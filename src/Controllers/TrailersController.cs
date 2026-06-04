@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OutsourceTracker.Equipment;
 using OutsourceTracker.Equipment.Trailers;
 using OutsourceTracker.Geolocation;
+using OutsourceTracker.Models.Zones;
 using OutsourceTracker.Services.DataModels;
 using OutsourceTracker.Services.ModelService;
 using OutsourceTracker.Tools;
@@ -17,11 +18,13 @@ namespace OutsourceTracker.Controllers;
 public class TrailersController : ControllerBase
 {
     private TrailerService Service { get; }
+    private ZoneDataService ZoneService { get; }
     private readonly ILogger<TrailersController> _logger;
 
     public TrailersController(IServiceProvider service, ILogger<TrailersController> logger)
     {
         Service = service.GetRequiredService<TrailerService>();
+        ZoneService = service.GetRequiredService<ZoneDataService>();
         _logger = logger;
     }
 
@@ -264,17 +267,38 @@ public class TrailersController : ControllerBase
             userId = Guid.Empty;
         }
 
-        var update = ModelUpdater<TrailerDbModel>.Update(ControllerContext.HttpContext.RequestServices)
+        // Query zones (using existing IsInZone-style logic via service) to auto-assign denormalized zone
+        // data to the trailer(s) when spotted at this location.
+        Zone? matchedZone = null;
+        try
+        {
+            matchedZone = await ZoneService.FindZoneForLocationAsync(request.Location, HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to lookup zone for spotted location {Location}", request.Location);
+        }
+
+        var updater = ModelUpdater<TrailerDbModel>.Update(ControllerContext.HttpContext.RequestServices)
             .Set(x => x.Location, request.Location)
             .Set(x => x.LocationAccuracy, request.Accuracy)
             .Set(x => x.LocatedByName, User.Identity?.Name ?? "Unknown User")
             .Set(x => x.LocatedById, userId)
-            .Set(x => x.LocatedDate, DateTimeOffset.UtcNow)
-            .Build();
+            .Set(x => x.LocatedDate, DateTimeOffset.UtcNow);
+
+        if (matchedZone != null)
+        {
+            updater
+                .Set(x => x.ZoneId, matchedZone.Id)
+                .Set(x => x.ZoneName, matchedZone.FullName ?? matchedZone.ShortCode ?? string.Empty);
+        }
+
+        var update = updater.Build();
 
 
         List<Guid> success = [];
         Dictionary<Guid, string> failed = [];
+        List<TrailerModel> updated = [];
         for (int i = 0; i < request.Ids.Length; i++)
         {
             ModelResult result = await Service.Update(request.Ids[i], update, HttpContext.RequestAborted);
@@ -282,7 +306,10 @@ public class TrailersController : ControllerBase
             if (result.Success)
             {
                 success.Add(request.Ids[i]);
-
+                if (result.Data is TrailerModel tm)
+                {
+                    updated.Add(tm);
+                }
             }
             else
             {
@@ -298,12 +325,20 @@ public class TrailersController : ControllerBase
             }
         }
 
-        return Ok(new EquipmentLocationUpdateResponse<Guid>
+        var responseObj = new EquipmentLocationUpdateResponse<Guid>
         {
             Success = failed.Count == 0,
             SuccessfulTrailers = success.ToArray(),
             FailedTrailers = failed
-        });
+        };
+
+        // Attach via dynamic so the JSON response includes "updatedTrailers" (with zone data etc.)
+        // even if the loaded Common package version's response type doesn't declare the property yet.
+        // Clients that have updated their model (or use dynamic/JSON) will receive the full updated trailers.
+        dynamic dynResp = responseObj;
+        dynResp.UpdatedTrailers = updated.ToArray();
+
+        return Ok(responseObj);
     }
 
     [AllowAnonymous]

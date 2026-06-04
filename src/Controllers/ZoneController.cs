@@ -38,14 +38,11 @@ public class ZoneController : ControllerBase
             return BadRequest(ModelState);
         }
         Vector2 coords = new Vector2(x, y);
-        var zones = Context.Search(cancellationToken: HttpContext.RequestAborted);
-        
-        await foreach (var zone in zones)
+        var zone = await Context.FindZoneForLocationAsync(coords, HttpContext.RequestAborted);
+
+        if (zone != null)
         {
-            if (zone.Boundry.Contains(coords))
-            {
-                return Ok(new { zone.Id, zone.ShortCode, zone.FullName });
-            }
+            return Ok(new { zone.Id, zone.ShortCode, zone.FullName });
         }
 
         return NotFound();

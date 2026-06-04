@@ -26,6 +26,28 @@ internal class ZoneDataService : DynamicDataService<Zone>
             .FirstOrDefaultAsync(z => z.ShortCode == normalized, cancellationToken);
     }
 
+    /// <summary>
+    /// Finds the first zone whose polygonal boundary contains the given coordinates (using Vector2 X=lat, Y=lng).
+    /// Returns null if no zone matches. This is used during trailer "spot" (location update) to
+    /// automatically populate denormalized ZoneId/ZoneName on the equipment.
+    /// Mirrors the logic from ZoneController.IsInZone but as an injectable service method.
+    /// </summary>
+    public async Task<Zone?> FindZoneForLocationAsync(Vector2 coordinates, CancellationToken cancellationToken = default)
+    {
+        if (coordinates == Vector2.Zero)
+            return null;
+
+        await foreach (var zone in Search(cancellationToken: cancellationToken).WithCancellation(cancellationToken))
+        {
+            if (zone.Boundry != null && zone.Boundry.Contains(coordinates))
+            {
+                return zone;
+            }
+        }
+
+        return null;
+    }
+
     protected override Task NormalizeModel(Zone model, CancellationToken cancellationToken)
     {
         model.ShortCode = model.ShortCode?.ToUpperInvariant().Trim() ?? string.Empty;
